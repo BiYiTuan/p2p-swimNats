@@ -18,12 +18,17 @@
  */
 package se.kth.swim;
 
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import se.kth.swim.msg.Pong;
 import se.kth.swim.msg.Status;
 import se.kth.swim.msg.net.NetPing;
+import se.kth.swim.msg.net.NetPong;
 import se.kth.swim.msg.net.NetStatus;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -65,6 +70,7 @@ public class SwimComp extends ComponentDefinition {
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handlePing, network);
+        subscribe(handlePong, network);
         subscribe(handlePingTimeout, timer);
         subscribe(handleStatusTimeout, timer);
     }
@@ -95,6 +101,7 @@ public class SwimComp extends ComponentDefinition {
             }
         }
 
+        
     };
 
     private Handler<NetPing> handlePing = new Handler<NetPing>() {
@@ -103,17 +110,36 @@ public class SwimComp extends ComponentDefinition {
         public void handle(NetPing event) {
             log.info("{} received ping from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
             receivedPings++;
+            log.info("{} sending pong to partner:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
+            trigger(new NetPong(selfAddress,event.getHeader().getSource()),network);
         }
 
+    };
+    
+    private Handler<NetPong> handlePong = new Handler<NetPong>(){
+
+		@Override
+		public void handle(NetPong event) {
+			// TODO Auto-generated method stub
+			log.info("{} received pong from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
+		}
+    	
     };
 
     private Handler<PingTimeout> handlePingTimeout = new Handler<PingTimeout>() {
 
         @Override
         public void handle(PingTimeout event) {
+        	//select random peer for bootstrap node
+        	int node = new Random().nextInt(bootstrapNodes.size());
+        	int i=0;
             for (NatedAddress partnerAddress : bootstrapNodes) {
+            	if (i==node){
                 log.info("{} sending ping to partner:{}", new Object[]{selfAddress.getId(), partnerAddress});
                 trigger(new NetPing(selfAddress, partnerAddress), network);
+                break;
+            	}
+            	i++;
             }
         }
 

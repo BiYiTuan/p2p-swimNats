@@ -37,6 +37,7 @@ import se.sics.p2ptoolbox.util.network.NatedAddress;
 public class AggregatorComp extends ComponentDefinition {
 
     private static final Logger log = LoggerFactory.getLogger(AggregatorComp.class);
+    //connects to p2p simulator
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
 
@@ -44,7 +45,7 @@ public class AggregatorComp extends ComponentDefinition {
 
     public AggregatorComp(AggregatorInit init) {
         this.selfAddress = init.selfAddress;
-        log.info("{} initiating...", new Object[]{selfAddress.getId()});
+        log.info("{} initiating....", new Object[]{selfAddress.getId()});
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);

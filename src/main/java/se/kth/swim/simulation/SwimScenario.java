@@ -55,7 +55,7 @@ public class SwimScenario {
 
     private static long seed;
     private static InetAddress localHost;
-
+    //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {
         try {
