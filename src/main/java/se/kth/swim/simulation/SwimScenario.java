@@ -24,9 +24,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import se.kth.swim.AggregatorComp;
 import se.kth.swim.HostComp;
+import se.kth.swim.SwimComp;
 import se.kth.swim.croupier.CroupierConfig;
 import se.sics.p2ptoolbox.simulator.cmd.OperationCmd;
 import se.sics.p2ptoolbox.simulator.cmd.impl.ChangeNetworkModelCmd;
@@ -53,6 +58,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicNatedAddress;
  */
 public class SwimScenario {
 
+	 private static final Logger log = LoggerFactory.getLogger(SwimScenario.class);
     private static long seed;
     private static InetAddress localHost;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
@@ -105,7 +111,7 @@ public class SwimScenario {
         public StartAggregatorCmd generate(final Integer nodeId) {
             return new StartAggregatorCmd<AggregatorComp, NatedAddress>() {
                 private NatedAddress aggregatorAddress;
-
+                
                 @Override
                 public Class getNodeComponentDefinition() {
                     return AggregatorComp.class;
@@ -147,11 +153,13 @@ public class SwimScenario {
                         //nated address
                         nodeAddress = new BasicNatedAddress(new BasicAddress(localHost, 12345, nodeId), NatType.NAT, bootstrapNodes);
                     }
+                    
                     /**
                      * we don't want all nodes to start their pseudo random
                      * generators with same seed else they might behave the same
                      */
                     long nodeSeed = seed + nodeId;
+                    log.info("number of bootstrapnodes for {} is {}",new Object[]{nodeId,bootstrapNodes.size()});
                     return new HostComp.HostInit(nodeAddress, bootstrapNodes, aggregatorServer, nodeSeed, croupierConfig);
                 }
 
@@ -253,7 +261,7 @@ public class SwimScenario {
                 StochasticProcess startPeers = new StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(3, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10, 13, 17}));
+                        raise(4, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10,12, 14, 18}));
                     }
                 };
 
@@ -287,7 +295,7 @@ public class SwimScenario {
 
                 startAggregator.start();
                 startPeers.startAfterTerminationOf(1000, startAggregator);
-//                stopPeers.startAfterTerminationOf(10000, startPeers);
+                //killPeers.startAfterTerminationOf(10000, startPeers);
 //                deadLinks1.startAfterTerminationOf(10000,startPeers);
 //                disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
                 fetchSimulationResult.startAfterTerminationOf(30*1000, startPeers);

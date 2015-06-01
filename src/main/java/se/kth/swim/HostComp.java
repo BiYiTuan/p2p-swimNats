@@ -55,20 +55,19 @@ public class HostComp extends ComponentDefinition {
     public HostComp(HostInit init) {
         this.selfAddress = init.selfAddress;
         log.info("{} initiating...", new Object[]{selfAddress});
-        
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         
         int overlayId = 1; //so far we don' start multiple croupier overlay
-        croupier = create(CroupierComp.class, new CroupierComp.CroupierInit(selfAddress, new ArrayList<NatedAddress>(init.bootstrapNodes), init.seed, init.croupierConfig, overlayId));
+        croupier = create(CroupierComp.class, new CroupierComp.CroupierInit(selfAddress, new ArrayList<NatedAddress>(init.getBootstrapNodes()), init.seed, init.croupierConfig, overlayId));
         connect(croupier.getNegative(Timer.class), timer);
         connect(croupier.getNegative(Network.class), network, new OverlayFilter(overlayId));
         
-        nat = create(NatTraversalComp.class, new NatTraversalComp.NatTraversalInit(selfAddress, init.seed));
+        nat = create(NatTraversalComp.class, new NatTraversalComp.NatTraversalInit(selfAddress, init.getSeed()));
         connect(nat.getNegative(Network.class), network);
         connect(nat.getNegative(CroupierPort.class), croupier.getPositive(CroupierPort.class));
         
-        swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, init.bootstrapNodes, init.aggregatorAddress));
+        swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, init.getBootstrapNodes(), init.getAggregatorAddress()));
         connect(swim.getNegative(Timer.class), timer);
         connect(swim.getNegative(Network.class), nat.getPositive(Network.class));
     }
@@ -92,11 +91,11 @@ public class HostComp extends ComponentDefinition {
 
     public static class HostInit extends Init<HostComp> {
 
-        public final NatedAddress selfAddress;
-        public final Set<NatedAddress> bootstrapNodes;
-        public final NatedAddress aggregatorAddress;
-        public final long seed;
-        public final CroupierConfig croupierConfig;
+        private final NatedAddress selfAddress;
+        private final Set<NatedAddress> bootstrapNodes;
+        private final NatedAddress aggregatorAddress;
+        private final long seed;
+        private final CroupierConfig croupierConfig;
 
         public HostInit(NatedAddress selfAddress, Set<NatedAddress> bootstrapNodes, NatedAddress aggregatorAddress, long seed, CroupierConfig croupierConfig) {
             this.selfAddress = selfAddress;
@@ -105,5 +104,25 @@ public class HostComp extends ComponentDefinition {
             this.seed = seed;
             this.croupierConfig = croupierConfig;
         }
+
+		public NatedAddress getSelfAddress() {
+			return selfAddress;
+		}
+
+		public long getSeed() {
+			return seed;
+		}
+
+		public Set<NatedAddress> getBootstrapNodes() {
+			return bootstrapNodes;
+		}
+
+		public NatedAddress getAggregatorAddress() {
+			return aggregatorAddress;
+		}
+
+		public CroupierConfig getCroupierConfig() {
+			return croupierConfig;
+		}
     }
 }

@@ -19,17 +19,26 @@
 package se.kth.swim;
 
 import java.util.Random;
+import java.lang.Math;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import se.kth.swim.msg.PiggyBackElement;
 import se.kth.swim.msg.Pong;
 import se.kth.swim.msg.Status;
 import se.kth.swim.msg.net.NetPing;
 import se.kth.swim.msg.net.NetPong;
 import se.kth.swim.msg.net.NetStatus;
+import se.kth.swim.msg.net.NodeStatus;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Init;
@@ -51,22 +60,33 @@ public class SwimComp extends ComponentDefinition {
     private static final Logger log = LoggerFactory.getLogger(SwimComp.class);
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
-
+    
     private final NatedAddress selfAddress;
-    private final Set<NatedAddress> bootstrapNodes;
+    private final Set<NatedAddress> neighbors;
     private final NatedAddress aggregatorAddress;
+    private final Map<Integer,PiggyBackElement> aliveNodes;
+    private final Map<Integer,PiggyBackElement> failedNodes;
+    private final Map<Integer,PiggyBackElement> piggybacked;
 
     private UUID pingTimeoutId;
     private UUID statusTimeoutId;
 
     private int receivedPings = 0;
+    
+    Double lamdalogn;
 
     public SwimComp(SwimInit init) {
         this.selfAddress = init.selfAddress;
         log.info("{} initiating...", selfAddress);
-        this.bootstrapNodes = init.bootstrapNodes;
+        this.neighbors = init.bootstrapNodes;
         this.aggregatorAddress = init.aggregatorAddress;
-
+        this.aliveNodes=new HashMap<Integer,PiggyBackElement>();
+        this.failedNodes=new HashMap<Integer,PiggyBackElement>();
+        this.piggybacked=new HashMap<Integer,PiggyBackElement>();
+        lamdalogn=((2) *Math.log10(neighbors.size()));
+        for (NatedAddress address: neighbors){
+        	this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0,calculateDisseminateTimes()));
+        }
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handlePing, network);
@@ -79,9 +99,8 @@ public class SwimComp extends ComponentDefinition {
 
         @Override
         public void handle(Start event) {
-            log.info("{} starting...", new Object[]{selfAddress.getId()});
-
-            if (!bootstrapNodes.isEmpty()) {
+            if (!neighbors.isEmpty()) {
+            	log.info("{} starting...", new Object[]{selfAddress.getId()});
                 schedulePeriodicPing();
             }
             schedulePeriodicStatus();
@@ -108,10 +127,33 @@ public class SwimComp extends ComponentDefinition {
 
         @Override
         public void handle(NetPing event) {
-            log.info("{} received ping from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
+        	log.info("{} received ping from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
             receivedPings++;
+            //if i get a ping from an unknown node, add it to the neighbor list
+            if (!neighbors.contains(event.getHeader().getSource())){
+            	neighbors.add(event.getHeader().getSource());
+            	aliveNodes.put(event.getHeader().getSource().getId(),new PiggyBackElement(event.getHeader().getSource(),NodeStatus.ALIVE,0,calculateDisseminateTimes()));
+            	//now i have a node to ping....
+            	if (neighbors.size()>0){
+            		schedulePeriodicPing();
+            	}
+            }
             log.info("{} sending pong to partner:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
-            trigger(new NetPong(selfAddress,event.getHeader().getSource()),network);
+            //clear previous piggybacking 
+            piggybacked.clear();
+            //piggyback information about changes
+            Iterator<Map.Entry<Integer, PiggyBackElement>> entries = aliveNodes.entrySet().iterator();
+            while (entries.hasNext()) {
+                Map.Entry<Integer, PiggyBackElement> entry = entries.next();
+                if (entry.getValue().getDiseminateTimes()>=0){
+                	entry.getValue().dicreaseDisseminateTimes();
+                	entry.getValue().incrementCounter();
+                	piggybacked.put(entry.getKey(), entry.getValue());
+                	
+                }
+            }
+            log.info("{} piggybacking:{} to {}", new Object[]{selfAddress.getId(),piggybacked.size(), event.getHeader().getSource()});
+            trigger(new NetPong(selfAddress,event.getHeader().getSource(),new Pong(piggybacked)),network);
         }
 
     };
@@ -122,6 +164,37 @@ public class SwimComp extends ComponentDefinition {
 		public void handle(NetPong event) {
 			// TODO Auto-generated method stub
 			log.info("{} received pong from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
+			if (event.getContent()!=null){
+			log.info("piggybacked pong {}", new Object[]{event.getContent().toString()});
+			//get the piggybacked elements
+			Iterator<Map.Entry<Integer, PiggyBackElement>> entries = event.getContent().getElements().entrySet().iterator();
+			//should merge received elements with my elements
+            while (entries.hasNext()) {
+            	 Map.Entry<Integer, PiggyBackElement> entry = entries.next();
+                Integer key = entry.getKey();
+                PiggyBackElement value = entry.getValue();
+                if ((value.getStatus()==NodeStatus.ALIVE)){
+                	if (aliveNodes.containsKey(key)){
+                		if ((value.getCount()>aliveNodes.get(key).getCount())){
+                			aliveNodes.put(key, value);
+                		}
+                	}else if (failedNodes.containsKey(key)) {
+                		if ((value.getCount()>failedNodes.get(key).getCount())){
+                			value.setDiseminateTimes(calculateDisseminateTimes());
+                			aliveNodes.put(key, value);
+                		}
+                	}else {
+                		//totally new node
+                		//neighbors.add(value.getAddress());
+                		value.setDiseminateTimes(calculateDisseminateTimes());
+                		aliveNodes.put(key, value);
+                	}
+                	//add to neigbors if it is not already there
+                }else if (value.getStatus()==NodeStatus.FAILED){
+                	//to be implemented later
+                }
+            }
+			}
 		}
     	
     };
@@ -131,16 +204,23 @@ public class SwimComp extends ComponentDefinition {
         @Override
         public void handle(PingTimeout event) {
         	//select random peer for bootstrap node
-        	int node = new Random().nextInt(bootstrapNodes.size());
-        	int i=0;
-            for (NatedAddress partnerAddress : bootstrapNodes) {
-            	if (i==node){
-                log.info("{} sending ping to partner:{}", new Object[]{selfAddress.getId(), partnerAddress});
-                trigger(new NetPing(selfAddress, partnerAddress), network);
-                break;
-            	}
-            	i++;
-            }
+        	//should it be alive nodes only?
+			Random random = new Random();
+			List<Integer> keys = new ArrayList<Integer>(aliveNodes.keySet());
+			Integer randomKey = keys.get(random.nextInt(aliveNodes.size()));
+			PiggyBackElement value = aliveNodes.get(randomKey);
+			log.info("{} sending ping to partner:{}", new Object[] {
+					selfAddress.getId(), value.getAddress() });
+			trigger(new NetPing(selfAddress, value.getAddress()), network);
+//        	int i=0;
+//            for (NatedAddress partnerAddress : ) {
+//            	if (i==node){
+//               
+//                
+//                break;
+//            	}
+//            	i++;
+//            }
         }
 
     };
@@ -149,7 +229,7 @@ public class SwimComp extends ComponentDefinition {
 
         @Override
         public void handle(StatusTimeout event) {
-            log.info("{} sending status to aggregator:{}", new Object[]{selfAddress.getId(), aggregatorAddress});
+            log.info("{} sending status to aggregator:{} alive {} failed {} total {}", new Object[]{selfAddress.getId(), aggregatorAddress,aliveNodes.size(), failedNodes.size(),neighbors.size()});
             trigger(new NetStatus(selfAddress, aggregatorAddress, new Status(receivedPings)), network);
         }
 
@@ -157,6 +237,15 @@ public class SwimComp extends ComponentDefinition {
 
     private void schedulePeriodicPing() {
         SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(1000, 1000);
+        PingTimeout sc = new PingTimeout(spt);
+        spt.setTimeoutEvent(sc);
+        pingTimeoutId = sc.getTimeoutId();
+        scheduleWaitingAck();
+        trigger(spt, timer);
+    }
+    
+    private void scheduleWaitingAck() {
+        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(3000,3000);
         PingTimeout sc = new PingTimeout(spt);
         spt.setTimeoutEvent(sc);
         pingTimeoutId = sc.getTimeoutId();
@@ -182,18 +271,35 @@ public class SwimComp extends ComponentDefinition {
         trigger(cpt, timer);
         statusTimeoutId = null;
     }
+    
+    private int calculateDisseminateTimes(){
+    	Double d = (2) *Math.log10(neighbors.size());
+    	return (d.intValue());
+    }
 
     public static class SwimInit extends Init<SwimComp> {
 
-        public final NatedAddress selfAddress;
-        public final Set<NatedAddress> bootstrapNodes;
-        public final NatedAddress aggregatorAddress;
+        private final NatedAddress selfAddress;
+        private final Set<NatedAddress> bootstrapNodes;
+        private final NatedAddress aggregatorAddress;
 
         public SwimInit(NatedAddress selfAddress, Set<NatedAddress> bootstrapNodes, NatedAddress aggregatorAddress) {
             this.selfAddress = selfAddress;
             this.bootstrapNodes = bootstrapNodes;
             this.aggregatorAddress = aggregatorAddress;
         }
+
+		public NatedAddress getSelfAddress() {
+			return selfAddress;
+		}
+
+		public Set<NatedAddress> getBootstrapNodes() {
+			return bootstrapNodes;
+		}
+
+		public NatedAddress getAggregatorAddress() {
+			return aggregatorAddress;
+		}
     }
 
     private static class StatusTimeout extends Timeout {
@@ -208,5 +314,11 @@ public class SwimComp extends ComponentDefinition {
         public PingTimeout(SchedulePeriodicTimeout request) {
             super(request);
         }
+    }
+    
+    private static class AckTimeout extends Timeout{
+    	public AckTimeout (SchedulePeriodicTimeout request){
+    		super(request);
+    	}
     }
 }
