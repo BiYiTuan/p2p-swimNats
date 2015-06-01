@@ -5,12 +5,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import se.sics.p2ptoolbox.util.network.NatedAddress;
 
 public class Pong {
 
-	Map<Integer,PiggyBackElement> map;
+	private Map<Integer,PiggyBackElement> map;
+	private UUID sn;
+
+	public UUID getSn() {
+		return sn;
+	}
+
+	public void setSn(UUID sn) {
+		this.sn = sn;
+	}
+
+	public Pong(Map<Integer, PiggyBackElement> map, UUID sn) {
+		super();
+		this.map = map;
+		this.sn = sn;
+	}
 
 	public Pong(){
 		

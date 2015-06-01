@@ -19,8 +19,29 @@
 
 package se.kth.swim.msg;
 
+import java.util.UUID;
+
 /**
  * @author Alex Ormenisan <aaor@sics.se>
  */
 public class Ping {
+	
+	private UUID sn;
+	
+	public Ping(){
+		
+	}
+
+	public UUID getSn() {
+		return sn;
+	}
+
+	public void setSn(UUID sn) {
+		this.sn = sn;
+	}
+
+	public Ping(UUID sn) {
+		super();
+		this.sn = sn;
+	}
 }
