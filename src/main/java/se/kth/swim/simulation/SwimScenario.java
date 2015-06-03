@@ -85,7 +85,7 @@ public class SwimScenario {
         deadLinks = new HashSet<Pair<Integer, Integer>>();
         deadLinks.add(Pair.with(10, 12));
         deadLinks.add(Pair.with(12, 10));
-        deadLinks.add(Pair.with(13, 10));
+        deadLinks.add(Pair.with(14, 10));
         deadLinksSets.put(2, deadLinks);
     }
 
@@ -158,8 +158,12 @@ public class SwimScenario {
                      * we don't want all nodes to start their pseudo random
                      * generators with same seed else they might behave the same
                      */
+                    if (bootstrapNodes.contains(nodeAddress)){
+                    	bootstrapNodes.remove(nodeAddress.getId());
+                    }
                     long nodeSeed = seed + nodeId;
                     log.info("number of bootstrapnodes for {} is {}",new Object[]{nodeId,bootstrapNodes.size()});
+                    System.out.println("RECONNECTING NODE: "+nodeId);
                     return new HostComp.HostInit(nodeAddress, bootstrapNodes, aggregatorServer, nodeSeed, croupierConfig);
                 }
 
@@ -211,8 +215,19 @@ public class SwimScenario {
         @Override
         public ChangeNetworkModelCmd generate(Integer setIndex) {
             NetworkModel baseNetworkModel = new UniformRandomModel(50, 500);
+            System.out.println("DISCONNECTING NODE: "+disconnectedNodesSets.get(setIndex));
             NetworkModel compositeNetworkModel = new DisconnectedNodesNetworkModel(setIndex, baseNetworkModel, disconnectedNodesSets.get(setIndex));
             return new ChangeNetworkModelCmd(compositeNetworkModel);
+        }
+    };
+    
+    static Operation1<ChangeNetworkModelCmd, Integer> reConnectedNodesNMOp = new Operation1<ChangeNetworkModelCmd, Integer>() {
+
+        @Override
+        public ChangeNetworkModelCmd generate(Integer setIndex) {
+            NetworkModel baseNetworkModel = new UniformRandomModel(50, 500);
+            
+            return new ChangeNetworkModelCmd(baseNetworkModel);
         }
     };
 
@@ -264,6 +279,14 @@ public class SwimScenario {
                         raise(4, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10,12, 14, 18}));
                     }
                 };
+                
+                StochasticProcess reconnectPeer = new StochasticProcess() {
+                    {
+                    	eventInterArrivalTime(constant(1000));
+                        raise(1, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10}));
+                    }
+                };
+                
 
                 StochasticProcess killPeers = new StochasticProcess() {
                     {
@@ -282,6 +305,7 @@ public class SwimScenario {
                 StochasticProcess disconnectedNodes1 = new StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
+                        
                         raise(1, disconnectedNodesNMOp, new ConstantDistribution(Integer.class, 1));
                     }
                 };
@@ -295,9 +319,10 @@ public class SwimScenario {
 
                 startAggregator.start();
                 startPeers.startAfterTerminationOf(1000, startAggregator);
-                killPeers.startAfterTerminationOf(10000, startPeers);
-//                deadLinks1.startAfterTerminationOf(10000,startPeers);
-//                disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
+              killPeers.startAfterTerminationOf(10000, startPeers);
+                //deadLinks1.startAfterTerminationOf(10000,startPeers);
+               //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
+               reconnectPeer.startAfterTerminationOf(10000, killPeers);
                 fetchSimulationResult.startAfterTerminationOf(30*1000, startPeers);
                 terminateAfterTerminationOf(1000, fetchSimulationResult);
 

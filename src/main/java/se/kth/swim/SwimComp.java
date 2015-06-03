@@ -110,6 +110,7 @@ public class SwimComp extends ComponentDefinition {
         public void handle(Start event) {
             if (!neighbors.isEmpty()) {
             	log.info("{} starting...", new Object[]{selfAddress.getId()});
+            	piggybacked.put(selfAddress.getId(), new PiggyBackElement(selfAddress, NodeStatus.NEW, 0, calculateDisseminateTimes()));
                 schedulePeriodicPing();
             }
             schedulePeriodicStatus();
@@ -139,9 +140,9 @@ public class SwimComp extends ComponentDefinition {
         	log.info("{} received ping from:{}", new Object[]{selfAddress.getId(), event.getHeader().getSource()});
             receivedPings++;
             //if i get a ping from an unknown node, add it to the neighbor list
-            if (!neighbors.contains(event.getHeader().getSource())){
+            if (!aliveNodes.containsKey(event.getHeader().getSource().getId())){
             	neighbors.add(event.getHeader().getSource());
-            	aliveNodes.put(event.getHeader().getSource().getId(),new PiggyBackElement(event.getHeader().getSource(),NodeStatus.ALIVE,0,calculateDisseminateTimes()));
+            	aliveNodes.put(event.getHeader().getSource().getId(),new PiggyBackElement(event.getHeader().getSource(),NodeStatus.NEW,0,calculateDisseminateTimes()));
             	//now i have a node to ping....
             	if (neighbors.size()>0){
             		schedulePeriodicPing();
@@ -157,6 +158,9 @@ public class SwimComp extends ComponentDefinition {
             Iterator<Map.Entry<Integer, PiggyBackElement>> entries = piggybacked.entrySet().iterator();
             while (entries.hasNext()) {
                 Map.Entry<Integer, PiggyBackElement> entry = entries.next();
+                if (entry.getValue().getDiseminateTimes()<0 && entry.getValue().getStatus()==NodeStatus.NEW){
+                	entry.getValue().setStatus(NodeStatus.ALIVE);
+                }
                 if (entry.getValue().getDiseminateTimes()<0){
                 	entries.remove();
                 }else {
@@ -170,7 +174,7 @@ public class SwimComp extends ComponentDefinition {
 
     };
     
-    private Handler<NetPong> handlePong = new Handler<NetPong>(){
+	private Handler<NetPong> handlePong = new Handler<NetPong>() {
 
 		@Override
 		public void handle(NetPong event) {
@@ -181,14 +185,26 @@ public class SwimComp extends ComponentDefinition {
 			if ((event.getContent() != null)
 					&& (ids.containsValue(event.getSource()) && (ids
 							.containsKey(event.getContent().getSn())))) {
-				//received pong from alive node
-				if (suspectedNodes.containsKey(event.getSource().getId())){
-					log.info("{} received pong from suspected node {}", new Object[]{selfAddress.getId(),event.getSource()});
-					PiggyBackElement element = event.getContent().getElements().get(event.getSource().getId());
+				// received pong from alive node
+				if (suspectedNodes.containsKey(event.getSource().getId())) {
+//					log.info(
+//							"{} received pong from suspected node {}",
+//							new Object[] { selfAddress.getId(),
+//									event.getSource() });
+					PiggyBackElement element = suspectedNodes.get(event.getSource().getId());
 					element.setStatus(NodeStatus.ALIVE);
 					element.setDiseminateTimes(calculateDisseminateTimes());
-					log.info("{} unsuspecting node {}",new Object[]{selfAddress.getId(),event.getSource()});
+					log.info("{} unsuspecting node {}", new Object[] {
+							selfAddress.getId(), event.getSource() });
 					suspectedNodes.remove(event.getSource().getId());
+					aliveNodes.put(event.getSource().getId(), element);
+				}else if (failedNodes.containsKey(event.getSource().getId())){
+					PiggyBackElement element = failedNodes.get(event.getSource().getId());
+					element.setStatus(NodeStatus.ALIVE);
+					element.setDiseminateTimes(calculateDisseminateTimes());
+					log.info("{} unfailing node {}", new Object[] {
+							selfAddress.getId(), event.getSource() });
+					failedNodes.remove(event.getSource().getId());
 					aliveNodes.put(event.getSource().getId(), element);
 				}
 				log.info("piggybacked pong {}", new Object[] { event
@@ -203,31 +219,42 @@ public class SwimComp extends ComponentDefinition {
 					Integer key = entry.getKey();
 					PiggyBackElement value = entry.getValue();
 					if (value.getAddress().equals(selfAddress)) {
-						//myself is suspected? Say no
-						//implement later
+						// myself is suspected? Say no
+						// implement later
 						continue;
-					} else if ((value.getStatus() == NodeStatus.ALIVE)) {
+					
+					}else if (value.getStatus()==NodeStatus.NEW){
+						if (!aliveNodes.containsKey(key)){
+							value.setDiseminateTimes(calculateDisseminateTimes());
+							value.setStatus(NodeStatus.ALIVE);
+							aliveNodes.put(key, value);
+							failedNodes.remove(key);
+						}
+					}
+					else if ((value.getStatus() == NodeStatus.ALIVE)) {
 						if (aliveNodes.containsKey(key)) {
 							if ((value.getCount() > aliveNodes.get(key)
 									.getCount())) {
 								aliveNodes.put(key, value);
 							}
 						} else if (suspectedNodes.containsKey(key)) {
-							//see page 7
-							//Such an Alive
-							//message un-marks the suspected member ✡☞✌ in membership
-							//lists of recipient members
-							if ((value.getCount() > failedNodes.get(key)
+							// see page 7
+							// Such an Alive
+							// message un-marks the suspected member ✡☞✌ in
+							// membership
+							// lists of recipient members
+							if ((value.getCount() > suspectedNodes.get(key)
 									.getCount())) {
 								value.setDiseminateTimes(calculateDisseminateTimes());
 								value.setStatus(NodeStatus.ALIVE);
 								suspectedNodes.remove(key);
 								aliveNodes.put(key, value);
 							}
-						} else if (failedNodes.containsKey(key)){
-							
-						}else {
-						
+						} else if (failedNodes.containsKey(key)) {
+
+							//alive does not override failed
+						} else {
+
 							// totally new node
 							// neighbors.add(value.getAddress());
 							value.setDiseminateTimes(calculateDisseminateTimes());
@@ -235,33 +262,45 @@ public class SwimComp extends ComponentDefinition {
 						}
 						// add to neigbors if it is not already there
 					} else if (value.getStatus() == NodeStatus.FAILED) {
-						//failed messages overrides alive and suspected
-						if (aliveNodes.containsKey(key)){
+						// failed messages overrides alive and suspected
+						if (aliveNodes.containsKey(key)) {
 							aliveNodes.remove(key);
 							value.setDiseminateTimes(calculateDisseminateTimes());
 							failedNodes.put(key, value);
-						}else if (suspectedNodes.containsKey(key)){
+						} else if (suspectedNodes.containsKey(key)) {
 							suspectedNodes.remove(key);
 							value.setDiseminateTimes(calculateDisseminateTimes());
 							failedNodes.put(key, value);
 						}
-					}else if(value.getStatus()==NodeStatus.SUSPECTED){
-						//see beginning of page 7 in swim paper, anynode receiving such message
-						//also marks mj as suspected
-						if (aliveNodes.containsKey(key)){
-							value.setStatus(NodeStatus.SUSPECTED);
-							value.setDiseminateTimes(calculateDisseminateTimes());
-							suspectedNodes.put(key, value);
-							scheduleWaitingSuspected();
-							ids.put(suspectTimeoutId, value.getAddress());
-							aliveNodes.remove(key);
+					} else if (value.getStatus() == NodeStatus.SUSPECTED) {
+						// see beginning of page 7 in swim paper, anynode
+						// receiving such message
+						// also marks mj as suspected
+						if (aliveNodes.containsKey(key)) {
+							if (value.getCount()>=aliveNodes.get(key).getCount()){
+								value.setStatus(NodeStatus.SUSPECTED);
+								value.setDiseminateTimes(calculateDisseminateTimes());
+								value.setCount(value.getCount());
+								suspectedNodes.put(key, value);
+								scheduleWaitingSuspected();
+								ids.put(suspectTimeoutId, value.getAddress());
+								aliveNodes.remove(key);
+							}
+							
+						}else if (suspectedNodes.containsKey(key)){
+							if (value.getCount()>suspectedNodes.get(key).getCount()){
+								//value.setStatus(NodeStatus.SUSPECTED);
+								value.setDiseminateTimes(calculateDisseminateTimes());
+								value.setCount(value.getCount());
+								suspectedNodes.put(key, value);
+							}
 						}
 					}
 				}
 			}
 		}
-    	
-    };
+
+	};
 
     private Handler<PingTimeout> handlePingTimeout = new Handler<PingTimeout>() {
 
@@ -274,6 +313,7 @@ public class SwimComp extends ComponentDefinition {
 			tempMap.putAll(aliveNodes);
 			tempMap.putAll(suspectedNodes);
 			List<Integer> keys = new ArrayList<Integer>(tempMap.keySet());
+			log.info("temporary map size: alive {} suspected {} temp {}",new Object[]{aliveNodes.size(),suspectedNodes.size(),tempMap.size()});
 			Integer randomKey = keys.get(random.nextInt(tempMap.size()));
 			PiggyBackElement value = tempMap.get(randomKey);
 			log.info("{} sending ping to partner:{}", new Object[] {
@@ -309,7 +349,7 @@ public class SwimComp extends ComponentDefinition {
 			if (aliveNodes.containsKey(addressid)){
 				//declare as suspected, not failed
 				PiggyBackElement element =(PiggyBackElement) aliveNodes.get(addressid);
-				log.info("piggyback element: {}",element.toString());
+				//log.info("piggyback element: {}",element.toString());
 				element.setDiseminateTimes(calculateDisseminateTimes());
 				//change status to suspected
 				element.setStatus(NodeStatus.SUSPECTED);
@@ -382,7 +422,7 @@ public class SwimComp extends ComponentDefinition {
         ScheduleTimeout st = new ScheduleTimeout(3000);
         SuspectedTimeout sc = new SuspectedTimeout(st,id);
         sc.setCustomID(id);
-        log.info("UUID to be set: {} UUID setted: {}", new Object[]{id,sc.getCustomID()});
+        //log.info("UUID to be set: {} UUID setted: {}", new Object[]{id,sc.getCustomID()});
         st.setTimeoutEvent(sc);
         trigger(st, timer);
         //return ackTimeoutId;
