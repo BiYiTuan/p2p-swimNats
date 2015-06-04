@@ -467,7 +467,7 @@ public class SwimComp extends ComponentDefinition {
 //			}
 			Integer addressId = ids.get(event.getCustomID()).getId();
 			if (aliveNodes.containsKey(addressId)){
-				PiggyBackElement element = (PiggyBackElement) suspectedNodes.get(addressId);
+				PiggyBackElement element = (PiggyBackElement) aliveNodes.get(addressId);
 				element.setDiseminateTimes(calculateDisseminateTimes());
 				element.setStatus(NodeStatus.FAILED);
 				aliveNodes.remove(addressId);

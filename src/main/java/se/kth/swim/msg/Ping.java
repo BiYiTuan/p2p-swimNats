@@ -19,29 +19,36 @@
 
 package se.kth.swim.msg;
 
+import java.util.Map;
 import java.util.UUID;
+
+import se.sics.p2ptoolbox.util.network.NatedAddress;
 
 /**
  * @author Alex Ormenisan <aaor@sics.se>
  */
-public class Ping {
+public class Ping  extends FDMessage{
 	
-	private UUID sn;
+	private NatedAddress forwardNode;
+
+	public Ping(UUID sn, Map<Integer, PiggyBackElement> nodes,NatedAddress forwardNode) {
+		super(sn, nodes);
+		this.forwardNode=forwardNode;
+		// TODO Auto-generated constructor stub
+	}
 	
 	public Ping(){
 		
 	}
+	
+	
 
-	public UUID getSn() {
-		return sn;
+	public NatedAddress getForwardNode() {
+		return forwardNode;
 	}
 
-	public void setSn(UUID sn) {
-		this.sn = sn;
+	public void setForwardNode(NatedAddress forwardNode) {
+		this.forwardNode = forwardNode;
 	}
-
-	public Ping(UUID sn) {
-		super();
-		this.sn = sn;
-	}
+	
 }

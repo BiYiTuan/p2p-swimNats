@@ -189,6 +189,7 @@ public class SwimScenario {
     static Operation1<KillNodeCmd, Integer> killNodeOp = new Operation1<KillNodeCmd, Integer>() {
 
         public KillNodeCmd generate(final Integer nodeId) {
+        	System.out.println("KILLING NODE: "+nodeId);
             return new KillNodeCmd() {
                 public Integer getNodeId() {
                     return nodeId;
