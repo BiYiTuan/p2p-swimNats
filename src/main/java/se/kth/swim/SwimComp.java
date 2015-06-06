@@ -261,14 +261,17 @@ public class SwimComp extends ComponentDefinition {
         	//select random peer for bootstrap node
         	//should it be alive nodes or suspected
 			PiggyBackElement value = selectRandomKeyFromAliveOrSuspectedNodes(null);
-			if (value!=null){
+			if (value!=null && (!ackids.containsValue(value.getAddress()))){
 				preparePiggyBackList();
 				log.info("{} sending periodic ping to partner:{}", new Object[] {
 						selfAddress.getId(), value.getAddress() });
 				scheduleWaitingAck(value.getAddress());				
 				//NULL as a parameter on Ping - because it is a direct ping and not an indirect ping
 				trigger(new NetPing(selfAddress, value.getAddress(), new Ping(ackTimeoutId,piggybacked, null,null)), network);
-			}else {
+			}else if (value!=null){
+				log.info("{} will not send periodic ping to partner:{} - already wait for an ack", new Object[] {
+						selfAddress.getId(), value.getAddress() });
+			}else if (value==null){
 				//if i have no nodes to ping, cancel periodic ping
 				cancelPeriodicPing();
 				log.info("{} has no peers to ping - aliveNodes: {}, suspectedNodes : {}, failedNodes: {}",new Object[]{selfAddress.getId(),aliveNodes.size(),suspectedNodes.size(),failedNodes.size()});
@@ -420,6 +423,7 @@ public class SwimComp extends ComponentDefinition {
             //new node changes status, after enough dissemination
             if (entry.getValue().getDiseminateTimes()<0 && entry.getValue().getStatus()==NodeStatus.NEW){
             	entry.getValue().setStatus(NodeStatus.ALIVE);
+            	
             }
             if (entry.getValue().getDiseminateTimes()<0){
             	//don t disseminate if it has been disseminated enough
@@ -449,7 +453,9 @@ public class SwimComp extends ComponentDefinition {
 				//if (!aliveNodes.containsKey(key)){
 					value.setDiseminateTimes(calculateDisseminateTimes());
 					//value.setStatus(NodeStatus.ALIVE);
-					neighbors.add(value.getAddress());
+					if (!neighbors.contains(value.getAddress())){
+						neighbors.add(value.getAddress());						
+					}
 					aliveNodes.put(key, value);
 					failedNodes.remove(key);
 					suspectedNodes.remove(key);
@@ -459,7 +465,7 @@ public class SwimComp extends ComponentDefinition {
 					if (hasBiggerCount(value)) {
 						aliveNodes.put(key, value);
 					}
-				} else if (suspectedNodes.containsKey(key)) {
+				} if (suspectedNodes.containsKey(key)) {
 					// see page 7
 					// Such an Alive
 					// message un-marks the suspected member ✡☞✌ in
@@ -470,7 +476,7 @@ public class SwimComp extends ComponentDefinition {
 						suspectedNodes.remove(key);
 						aliveNodes.put(key, value);
 					}
-				} else if (failedNodes.containsKey(key)) {
+				} if (failedNodes.containsKey(key)) {
 					//alive does not override failed
 				} else {
 					// totally new node
@@ -485,7 +491,7 @@ public class SwimComp extends ComponentDefinition {
 					aliveNodes.remove(key);
 					value.setDiseminateTimes(calculateDisseminateTimes());
 					failedNodes.put(key, value);
-				} else if (suspectedNodes.containsKey(key)) {
+				}  if (suspectedNodes.containsKey(key)) {
 					suspectedNodes.remove(key);
 					value.setDiseminateTimes(calculateDisseminateTimes());
 					failedNodes.put(key, value);
@@ -505,7 +511,7 @@ public class SwimComp extends ComponentDefinition {
 						aliveNodes.remove(key);
 					}
 					
-				}else if (suspectedNodes.containsKey(key)){
+				} if (suspectedNodes.containsKey(key)){
 					if (hasBiggerCountSuspected(value)){
 						//value.setStatus(NodeStatus.SUSPECTED);
 						value.setDiseminateTimes(calculateDisseminateTimes());
@@ -521,33 +527,44 @@ public class SwimComp extends ComponentDefinition {
     private void checkSource(NatedAddress source){
     	//if we receive a message from a node, it means it is alive
     	//so we check if it is consistent with our data
-//    	if (aliveNodes.containsKey(source.getId())){
-//    		//information is consistent
-//    		return;
-//    	} 
+    	if (aliveNodes.containsKey(source.getId())){
+    		//information is consistent
+    		
+    	} 
     	if (suspectedNodes.containsKey(source)){
     		PiggyBackElement e = suspectedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.setDiseminateTimes(calculateDisseminateTimes());
     		log.info("{} unsuspects node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
     		suspectedNodes.remove(source.getId());
+    		failedNodes.remove(source.getId());
+    		e.incrementCounter();
     		aliveNodes.put(source.getId(), e);
-    	}else if (failedNodes.containsKey(source)){
+    	}if (failedNodes.containsKey(source)){
     		PiggyBackElement e = failedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.setDiseminateTimes(calculateDisseminateTimes());
     		log.info("{} unfailed node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    		e.incrementCounter();
     		failedNodes.remove(source.getId());
+    		suspectedNodes.remove(source.getId());
     		aliveNodes.put(source.getId(), e);
-    	}else {
+    	}
     		//we have an unknown, totally new node!
-    		neighbors.add(source);
-    		log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
-    		aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.ALIVE, 0, calculateDisseminateTimes()));
+    	if (!aliveNodes.containsKey(source.getId())){
+			neighbors.add(source);    			
+			log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+			aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW, 0, calculateDisseminateTimes()));
+		}
+    		if (!neighbors.contains(source)){
+    			neighbors.add(source);    			
+    			log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    			aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW, 0, calculateDisseminateTimes()));
+    		}
     		if (neighbors.size()==1){
     			schedulePeriodicPing();
     		}
-    	}
+    	
     }
     
     private boolean hasBiggerCount(PiggyBackElement e){
@@ -660,7 +677,7 @@ public class SwimComp extends ComponentDefinition {
     }
 
     private void schedulePeriodicStatus() {
-        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(1000, 1000);
+        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(3000, 3000);
         StatusTimeout sc = new StatusTimeout(spt);
         spt.setTimeoutEvent(sc);
         statusTimeoutId = sc.getTimeoutId();
