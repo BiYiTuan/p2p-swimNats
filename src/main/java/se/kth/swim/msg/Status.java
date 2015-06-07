@@ -25,7 +25,49 @@ package se.kth.swim.msg;
 public class Status {
     public int receivedPings;
     
-    public Status(int receivedPings) {
-        this.receivedPings = receivedPings;
-    }
+	int aliveNodes;
+	int suspectedNodes;
+	int failedNodes;
+    
+    public Status(int receivedPings, int aliveNodes, int suspectedNodes,
+			int failedNodes) {
+		super();
+		this.receivedPings = receivedPings;
+		this.aliveNodes = aliveNodes;
+		this.suspectedNodes = suspectedNodes;
+		this.failedNodes = failedNodes;
+	}
+
+	public int getReceivedPings() {
+		return receivedPings;
+	}
+
+	public void setReceivedPings(int receivedPings) {
+		this.receivedPings = receivedPings;
+	}
+
+	public int getAliveNodes() {
+		return aliveNodes;
+	}
+
+	public void setAliveNodes(int aliveNodes) {
+		this.aliveNodes = aliveNodes;
+	}
+
+	public int getSuspectedNodes() {
+		return suspectedNodes;
+	}
+
+	public void setSuspectedNodes(int suspectedNodes) {
+		this.suspectedNodes = suspectedNodes;
+	}
+
+	public int getFailedNodes() {
+		return failedNodes;
+	}
+
+	public void setFailedNodes(int failedNodes) {
+		this.failedNodes = failedNodes;
+	}
+
 }

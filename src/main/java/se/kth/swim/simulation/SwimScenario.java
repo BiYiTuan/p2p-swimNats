@@ -277,7 +277,7 @@ public class SwimScenario {
                 StochasticProcess startPeers = new StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(4, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10,12, 14, 18}));
+                        raise(10, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10,12, 14, 18,20,22,24,26,28,30}));
                     }
                 };
                 

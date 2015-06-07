@@ -82,6 +82,7 @@ public class SwimComp extends ComponentDefinition {
     
     //number of k nodes to send indirect ping
     private final int k=1;
+    private final int nodes=10;
     
     private Map<UUID,NatedAddress> ackids = new HashMap<UUID,NatedAddress>();
     private Map<UUID,NatedAddress> suspectids = new HashMap<UUID,NatedAddress>();
@@ -295,7 +296,7 @@ public class SwimComp extends ComponentDefinition {
             for (Integer key: failedNodes.keySet()){
             	log.info("Failed Key:"+key);
             }
-        	trigger(new NetStatus(selfAddress, aggregatorAddress, new Status(receivedPings)), network);
+        	trigger(new NetStatus(selfAddress, aggregatorAddress, new Status(receivedPings,aliveNodes.size(),suspectedNodes.size(),failedNodes.size())), network);
         }
 
     };
@@ -448,7 +449,7 @@ public class SwimComp extends ComponentDefinition {
 				if (value.getStatus()== NodeStatus.SUSPECTED||value.getStatus()==NodeStatus.FAILED){
 						aliveNodes.put(selfAddress.getId(), new PiggyBackElement(selfAddress, NodeStatus.ALIVE, value.getCount(), calculateDisseminateTimes()));
 				}
-				continue;
+				//continue;
 			}else if (value.getStatus()==NodeStatus.NEW){
 				//if (!aliveNodes.containsKey(key)){
 					value.setDiseminateTimes(calculateDisseminateTimes());
@@ -464,6 +465,8 @@ public class SwimComp extends ComponentDefinition {
 				if (aliveNodes.containsKey(key)) {
 					if (hasBiggerCount(value)) {
 						aliveNodes.put(key, value);
+						failedNodes.remove(key);
+						suspectedNodes.remove(key);
 					}
 				} if (suspectedNodes.containsKey(key)) {
 					// see page 7
@@ -474,6 +477,7 @@ public class SwimComp extends ComponentDefinition {
 					if (hasBiggerCountSuspected(value)) {
 						value.setDiseminateTimes(calculateDisseminateTimes());
 						suspectedNodes.remove(key);
+						failedNodes.remove(key);
 						aliveNodes.put(key, value);
 					}
 				} if (failedNodes.containsKey(key)) {
@@ -508,6 +512,7 @@ public class SwimComp extends ComponentDefinition {
 						suspectedNodes.put(key, value);
 						//scheduleWaitingSuspected();
 						//ids.put(suspectTimeoutId, value.getAddress());
+						failedNodes.remove(key);
 						aliveNodes.remove(key);
 					}
 					
@@ -516,6 +521,7 @@ public class SwimComp extends ComponentDefinition {
 						//value.setStatus(NodeStatus.SUSPECTED);
 						value.setDiseminateTimes(calculateDisseminateTimes());
 						value.setCount(value.getCount());
+						failedNodes.remove(key);
 						suspectedNodes.put(key, value);
 					}
 				}
@@ -529,7 +535,8 @@ public class SwimComp extends ComponentDefinition {
     	//so we check if it is consistent with our data
     	if (aliveNodes.containsKey(source.getId())){
     		//information is consistent
-    		
+    		failedNodes.remove(source.getId());
+    		suspectedNodes.remove(source.getId());
     	} 
     	if (suspectedNodes.containsKey(source)){
     		PiggyBackElement e = suspectedNodes.get(source.getId());
@@ -537,7 +544,6 @@ public class SwimComp extends ComponentDefinition {
     		e.setDiseminateTimes(calculateDisseminateTimes());
     		log.info("{} unsuspects node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
     		suspectedNodes.remove(source.getId());
-    		failedNodes.remove(source.getId());
     		e.incrementCounter();
     		aliveNodes.put(source.getId(), e);
     	}if (failedNodes.containsKey(source)){
@@ -691,7 +697,7 @@ public class SwimComp extends ComponentDefinition {
     }
     
     private int calculateDisseminateTimes(){
-    	Double d = (2) *Math.log10(4);
+    	Double d = (2) *Math.log10(10);
     	return (d.intValue());
     }
 

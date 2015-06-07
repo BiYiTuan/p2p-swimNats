@@ -28,6 +28,8 @@ import se.sics.p2ptoolbox.util.network.NatedAddress;
  * @author Alex Ormenisan <aaor@sics.se>
  */
 public class NetStatus extends NetMsg<Status> {
+	
+	
 
     public NetStatus(NatedAddress src, NatedAddress dst, Status status) {
         super(src, dst, status);
