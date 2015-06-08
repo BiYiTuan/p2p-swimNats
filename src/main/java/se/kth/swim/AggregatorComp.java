@@ -18,8 +18,16 @@
  */
 package se.kth.swim;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import se.kth.swim.msg.Status;
 import se.kth.swim.msg.net.NetStatus;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -28,6 +36,9 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.CancelPeriodicTimeout;
+import se.sics.kompics.timer.SchedulePeriodicTimeout;
+import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 import se.sics.p2ptoolbox.util.network.NatedAddress;
 
@@ -40,16 +51,32 @@ public class AggregatorComp extends ComponentDefinition {
     //connects to p2p simulator
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
+    private Map<Integer,Status> nodes;
 
     private final NatedAddress selfAddress;
+    
+    private boolean converged;
+    //time in milliseconds
+    private long init;
+    private int first;
+    private UUID timerID;
+    private long time;
+    
+    private List<Integer> killedNodes;
 
     public AggregatorComp(AggregatorInit init) {
         this.selfAddress = init.selfAddress;
+        this.killedNodes=new ArrayList<Integer>();
+        this.converged=true;
+        this.nodes = new HashMap<Integer,Status>();
+        this.init=0;
+        this.first=0;
         log.info("{} initiating....", new Object[]{selfAddress.getId()});
 
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handleStatus, network);
+        subscribe(handleEvaluationTimer,timer);
     }
 
     private Handler<Start> handleStart = new Handler<Start>() {
@@ -65,6 +92,9 @@ public class AggregatorComp extends ComponentDefinition {
         @Override
         public void handle(Stop event) {
             log.info("{} stopping...", new Object[]{selfAddress});
+            if (timerID!=null){
+            	cancelTimer(timerID);
+            }
         }
 
     };
@@ -73,10 +103,44 @@ public class AggregatorComp extends ComponentDefinition {
 
         @Override
         public void handle(NetStatus status) {
+        	if (converged){
             log.info("{} status from:{} pings:{} , alive : {} suspected : {} failed : {}", 
                     new Object[]{selfAddress.getId(), status.getHeader().getSource(), status.getContent().receivedPings,status.getContent().getAliveNodes(),status.getContent().getSuspectedNodes(),status.getContent().getFailedNodes()});
+        	}
+        	
+        	if (first==0 && killedNodes.size()>0 && status.getContent().getFailedNodes()>0){
+        		first++;
+        		time=init;
+        	}
         }
+        	
     };
+    
+    private Handler<EvaluationTimer> handleEvaluationTimer = new Handler<EvaluationTimer>(){
+
+		@Override
+		public void handle(EvaluationTimer event) {
+			// TODO Auto-generated method stub
+			time++;
+		}
+    	
+    };
+    
+    private UUID scheduleTimer() {
+        SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(0, 100);
+        EvaluationTimer at = new EvaluationTimer(spt);
+        spt.setTimeoutEvent(at);
+        timerID = at.getTimeoutId();
+        trigger(spt, timer);
+
+        return timerID;
+      }
+
+      private void cancelTimer(UUID timerID) {
+        CancelPeriodicTimeout cpt = new CancelPeriodicTimeout(timerID);
+        trigger(cpt, timer);
+        timerID = null;
+      }
 
     public static class AggregatorInit extends Init<AggregatorComp> {
 
@@ -85,5 +149,14 @@ public class AggregatorComp extends ComponentDefinition {
         public AggregatorInit(NatedAddress selfAddress) {
             this.selfAddress = selfAddress;
         }
+    }
+    
+    private static class  EvaluationTimer extends Timeout{
+
+		protected EvaluationTimer(SchedulePeriodicTimeout request) {
+			super(request);
+			// TODO Auto-generated constructor stub
+		}
+    	
     }
 }
