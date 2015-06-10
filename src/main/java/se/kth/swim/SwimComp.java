@@ -83,6 +83,7 @@ public class SwimComp extends ComponentDefinition {
     //number of k nodes to send indirect ping
     private final int k=1;
     private final int nodes=10;
+   private  int robin =0;
     
     private Map<UUID,NatedAddress> ackids = new HashMap<UUID,NatedAddress>();
     private Map<UUID,NatedAddress> suspectids = new HashMap<UUID,NatedAddress>();
@@ -104,8 +105,10 @@ public class SwimComp extends ComponentDefinition {
         this.piggybacked=new HashMap<Integer,PiggyBackElement>();
         lamdalogn=((2) *Math.log10(4));
         for (NatedAddress address: neighbors){
-        	this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0,calculateDisseminateTimes()));
+        	this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0,0));
         }
+        neighbors.add(selfAddress);
+        aliveNodes.put(selfAddress.getId(), new PiggyBackElement(selfAddress, NodeStatus.NEW));
         subscribe(handleStart, control);
         subscribe(handleStop, control);
         subscribe(handlePing, network);
@@ -125,7 +128,6 @@ public class SwimComp extends ComponentDefinition {
             if (!neighbors.isEmpty()) {
             	log.info("{} starting...", new Object[]{selfAddress.getId()});
             	//tell that i have just started
-            	aliveNodes.put(selfAddress.getId(), new PiggyBackElement(selfAddress, NodeStatus.NEW, 0, calculateDisseminateTimes()));
             	//aliveNodes.put(selfAddress.getId(), new )
                 schedulePeriodicPing();
             }
@@ -169,7 +171,7 @@ public class SwimComp extends ComponentDefinition {
             //log.info("{} piggybacking:{} to {}", new Object[]{selfAddress.getId(),piggybacked.size(), event.getHeader().getSource()});
             log.info("{} sending pong to partner:{} , piggybacking {}", new Object[]{selfAddress.getId(), event.getHeader().getSource(),piggybacked.toString()});
             preparePiggyBackList();
-            if (event.getContent().getForwardNode()!=null){
+            if (event.getContent().getForwardNode()!=null ){
             	//it is a ping-req
                 trigger(new NetPong(selfAddress,source,new Pong(event.getContent().getSn(),piggybacked,event.getContent().getForwardNode(),event.getContent().getInitialUUID())),network);            	
             }
@@ -261,7 +263,7 @@ public class SwimComp extends ComponentDefinition {
         public void handle(PingTimeout event) {
         	//select random peer for bootstrap node
         	//should it be alive nodes or suspected
-			PiggyBackElement value = selectRandomKeyFromAliveOrSuspectedNodes(null);
+			PiggyBackElement value = selectRoundRobinNode(null);
 			if (value!=null && (!ackids.containsValue(value.getAddress()))){
 				preparePiggyBackList();
 				log.info("{} sending periodic ping to partner:{}", new Object[] {
@@ -319,7 +321,7 @@ public class SwimComp extends ComponentDefinition {
 				suspectedNodes.put(noReplyNode.getId(), e);
 				//select k members at random
 				for (int i=0; i<k; i++){
-					PiggyBackElement value = selectRandomKeyFromAliveOrSuspectedNodes(noReplyNode);
+					PiggyBackElement value = selectRoundRobinNode(noReplyNode);
 					preparePiggyBackList();
 					//send ping-req message to peers
 					trigger(new NetPingReq(selfAddress, value.getAddress(), new PingReq(scheduleWaitingSuspected(noReplyNode),piggybacked,noReplyNode)), network);
@@ -464,9 +466,9 @@ public class SwimComp extends ComponentDefinition {
 			else if ((value.getStatus() == NodeStatus.ALIVE)) {
 				if (aliveNodes.containsKey(key)) {
 					if (hasBiggerCount(value)) {
-						aliveNodes.put(key, value);
 						failedNodes.remove(key);
 						suspectedNodes.remove(key);
+						aliveNodes.put(key, value);
 					}
 				} if (suspectedNodes.containsKey(key)) {
 					// see page 7
@@ -589,21 +591,43 @@ public class SwimComp extends ComponentDefinition {
     	
     }
     
-    private PiggyBackElement selectRandomKeyFromAliveOrSuspectedNodes(NatedAddress noReplyNode){
-    	Random random = new Random();
+//    private PiggyBackElement selectRandomKeyFromAliveOrSuspectedNodes(NatedAddress noReplyNode){
+//    	Random random = new Random();
+//		Map<Integer,PiggyBackElement> tempMap = new HashMap<Integer,PiggyBackElement>();
+//		tempMap.putAll(aliveNodes);
+//		tempMap.putAll(suspectedNodes);
+//		if (noReplyNode!=null){
+//			tempMap.remove(noReplyNode.getId());			
+//		}
+//		tempMap.remove(selfAddress);
+//		List<Integer> keys = new ArrayList<Integer>(tempMap.keySet());
+//		Integer randomKey = keys.get(random.nextInt(tempMap.size()));
+//		PiggyBackElement value = tempMap.get(randomKey);
+//    	return value;
+//    }
+//    
+    
+    private PiggyBackElement selectRoundRobinNode(NatedAddress noReplyNode){
 		Map<Integer,PiggyBackElement> tempMap = new HashMap<Integer,PiggyBackElement>();
 		tempMap.putAll(aliveNodes);
 		tempMap.putAll(suspectedNodes);
 		if (noReplyNode!=null){
-			tempMap.remove(noReplyNode.getId());			
-		}
-		tempMap.remove(selfAddress);
-		List<Integer> keys = new ArrayList<Integer>(tempMap.keySet());
-		Integer randomKey = keys.get(random.nextInt(tempMap.size()));
-		PiggyBackElement value = tempMap.get(randomKey);
-    	return value;
+		tempMap.remove(noReplyNode.getId());			
+	}
+	tempMap.remove(selfAddress);
+	List<Integer> keys = new ArrayList<Integer>(tempMap.keySet());
+	PiggyBackElement value ;
+	if (robin<tempMap.size()){
+		Integer key = keys.get(robin);
+		 value = tempMap.get(key);
+		robin++;
+	}else {
+		robin=0;
+		Integer key = keys.get(robin);
+		value= tempMap.get(key);
+	}
+	return value;
     }
-    
 
     private void schedulePeriodicPing() {
         SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(1000, 1000);

@@ -4,6 +4,9 @@ import se.kth.swim.msg.net.NodeStatus;
 import se.sics.p2ptoolbox.util.network.NatedAddress;
 
 public class PiggyBackElement {
+	
+	private final int nodes = 10;
+	
 	private NatedAddress address;
 	private NodeStatus status;
 	private int count;
@@ -23,6 +26,13 @@ public class PiggyBackElement {
 
 	public PiggyBackElement() {
 
+	}
+	
+	public PiggyBackElement(NatedAddress address, NodeStatus status) {
+		this.address = address;
+		this.status = status;
+		this.count = 0;
+		this.diseminateTimes=calculateDisseminateTimes();
 	}
 
 	public PiggyBackElement(NatedAddress address, NodeStatus status, int count,int disseminateTimes) {
@@ -70,6 +80,7 @@ public class PiggyBackElement {
 
 	public void setStatus(NodeStatus status) {
 		this.status = status;
+		//this.count++;
 	}
 
 	public int getCount() {
@@ -89,6 +100,13 @@ public class PiggyBackElement {
 		// TODO Auto-generated method stub
 		return "Piggybacked element: "+this.address.toString() + ","+this.getStatus()+","+","+this.getCount()+","+this.getDiseminateTimes();
 	}
+	
+    private int calculateDisseminateTimes(){
+    	Double d = (2) *Math.log10(nodes);
+    	return (d.intValue());
+    }
+    
+    
 	
 
 }
