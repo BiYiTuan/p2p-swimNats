@@ -20,8 +20,10 @@ package se.kth.swim.simulation;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -59,8 +61,10 @@ import se.sics.p2ptoolbox.util.network.impl.BasicNatedAddress;
 public class SwimScenario {
 
 	 private static final Logger log = LoggerFactory.getLogger(SwimScenario.class);
+	 private static List<Integer> KILLED;
     private static long seed;
     private static InetAddress localHost;
+    private static Integer size=100;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {
@@ -96,7 +100,7 @@ public class SwimScenario {
         Set<Integer> disconnectedNodes;
 
         disconnectedNodes = new HashSet<Integer>();
-        disconnectedNodes.add(10);
+        disconnectedNodes.add(4);
         disconnectedNodesSets.put(1, disconnectedNodes);
 
         disconnectedNodes = new HashSet<Integer>();
@@ -120,7 +124,7 @@ public class SwimScenario {
                 @Override
                 public AggregatorComp.AggregatorInit getNodeComponentInit() {
                     aggregatorAddress = new BasicNatedAddress(new BasicAddress(localHost, 23456, nodeId));
-                    return new AggregatorComp.AggregatorInit(aggregatorAddress);
+                    return new AggregatorComp.AggregatorInit(aggregatorAddress,size,new ArrayList<Integer>(disconnectedNodesSets.get(1)));
                 }
 
                 @Override
@@ -275,9 +279,20 @@ public class SwimScenario {
                 };
 
                 StochasticProcess startPeers = new StochasticProcess() {
-                    {
+                    {                    	
+                    	
+                    	List<Integer> evens = new ArrayList<Integer>();
+                        for(int i=2; i<size*3; i++) {
+                            if(i%2 == 0) {
+                                evens.add(i);
+                                if (evens.size()==size){
+                                	break;
+                                }
+                            }
+                        }
+                       Integer[] nodes=(Integer[]) evens.toArray(new Integer[size]);
                         eventInterArrivalTime(constant(1000));
-                        raise(10, startNodeOp, new GenIntSequentialDistribution(new Integer[]{10,12, 14, 18,20,22,24,26,28,30}));
+                        raise(size, startNodeOp, new GenIntSequentialDistribution(nodes));
                     }
                 };
                 
@@ -292,7 +307,7 @@ public class SwimScenario {
                 StochasticProcess killPeers = new StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(1, killNodeOp, new ConstantDistribution(Integer.class, 10));
+                        raise(1, killNodeOp, new ConstantDistribution(Integer.class, 4));
                     }
                 };
 
@@ -324,7 +339,7 @@ public class SwimScenario {
                 //deadLinks1.startAfterTerminationOf(10000,startPeers);
                //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
                reconnectPeer.startAfterTerminationOf(10000, killPeers);
-                fetchSimulationResult.startAfterTerminationOf(30*1000, killPeers);
+                fetchSimulationResult.startAfterTerminationOf(50*1000, reconnectPeer);
                 terminateAfterTerminationOf(1000, fetchSimulationResult);
 
             }

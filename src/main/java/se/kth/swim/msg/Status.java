@@ -25,9 +25,9 @@ package se.kth.swim.msg;
 public class Status {
     public int receivedPings;
     
-	int aliveNodes;
-	int suspectedNodes;
-	int failedNodes;
+	private Integer aliveNodes;
+	private Integer suspectedNodes;
+	private Integer failedNodes;
     
     public Status(int receivedPings, int aliveNodes, int suspectedNodes,
 			int failedNodes) {
@@ -38,7 +38,7 @@ public class Status {
 		this.failedNodes = failedNodes;
 	}
 
-	public int getReceivedPings() {
+	public Integer getReceivedPings() {
 		return receivedPings;
 	}
 
@@ -46,7 +46,7 @@ public class Status {
 		this.receivedPings = receivedPings;
 	}
 
-	public int getAliveNodes() {
+	public Integer getAliveNodes() {
 		return aliveNodes;
 	}
 
@@ -54,7 +54,7 @@ public class Status {
 		this.aliveNodes = aliveNodes;
 	}
 
-	public int getSuspectedNodes() {
+	public Integer getSuspectedNodes() {
 		return suspectedNodes;
 	}
 
@@ -62,7 +62,7 @@ public class Status {
 		this.suspectedNodes = suspectedNodes;
 	}
 
-	public int getFailedNodes() {
+	public Integer getFailedNodes() {
 		return failedNodes;
 	}
 
