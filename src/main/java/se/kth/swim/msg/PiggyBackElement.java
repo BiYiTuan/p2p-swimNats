@@ -5,7 +5,7 @@ import se.sics.p2ptoolbox.util.network.NatedAddress;
 
 public class PiggyBackElement {
 	
-	private final int nodes = 200;
+	private final int nodes = 20;
 	
 	private NatedAddress address;
 	private NodeStatus status;
@@ -115,7 +115,7 @@ public class PiggyBackElement {
 	}
 	
     private int calculateDisseminateTimes(){
-    	Double d = (20) *Math.log10(nodes);
+    	Double d = (50) *Math.log10(nodes);
     	return (d.intValue());
     }
     

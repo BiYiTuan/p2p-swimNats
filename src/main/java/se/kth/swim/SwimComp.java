@@ -82,7 +82,7 @@ public class SwimComp extends ComponentDefinition {
     private int receivedPings = 0;
     
     //number of k nodes to send indirect ping
-    private final int k=1;
+    private final int k=3;
     //implementation of the round robin protocol
     private  int robin =0;
     
@@ -457,9 +457,9 @@ public class SwimComp extends ComponentDefinition {
 					if (hasBiggerCount(value)) {
 						//failedNodes.remove(key);
 						//suspectedNodes.remove(key);
-						aliveNodes.put(key, value);
+						aliveNodes.get(key).setCount(value.getCount());
 					}
-				} if (suspectedNodes.containsKey(key)) {
+				}else if (suspectedNodes.containsKey(key)) {
 					// see page 7
 					// Such an Alive
 					// message un-marks the suspected member ✡☞✌ in
@@ -471,7 +471,7 @@ public class SwimComp extends ComponentDefinition {
 						//failedNodes.remove(key);
 						aliveNodes.put(key, value);
 					}
-				} if (failedNodes.containsKey(key)) {
+				} else if (failedNodes.containsKey(key)) {
 					//alive does not override failed
 				} else {
 					// totally new node
@@ -486,7 +486,7 @@ public class SwimComp extends ComponentDefinition {
 					aliveNodes.remove(key);
 					value.initDiseminateTimes();
 					failedNodes.put(key, value);
-				}  if (suspectedNodes.containsKey(key)) {
+				}  else if (suspectedNodes.containsKey(key)) {
 					suspectedNodes.remove(key);
 					value.initDiseminateTimes();
 					failedNodes.put(key, value);
@@ -508,7 +508,7 @@ public class SwimComp extends ComponentDefinition {
 						suspectedNodes.put(key, value);
 					}
 					
-				} if (suspectedNodes.containsKey(key)){
+				}else if (suspectedNodes.containsKey(key)){
 					if (hasBiggerCountSuspected(value)){
 						//value.setStatus(NodeStatus.SUSPECTED);
 						value.initDiseminateTimes();
@@ -529,39 +529,44 @@ public class SwimComp extends ComponentDefinition {
     		//information is consistent
     		//failedNodes.remove(source.getId());
     		//suspectedNodes.remove(source.getId());
+    		return;
     	} 
-    	if (suspectedNodes.containsKey(source)){
+    	else if (suspectedNodes.containsKey(source)){
     		PiggyBackElement e = suspectedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.initDiseminateTimes();
-    		log.info("{} unsuspects node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    		//log.info("{} unsuspects node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
     		suspectedNodes.remove(source.getId());
     		e.incrementCounter();
     		aliveNodes.put(source.getId(), e);
-    	}if (failedNodes.containsKey(source)){
+    		return;
+    	}else if (failedNodes.containsKey(source)){
     		PiggyBackElement e = failedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.initDiseminateTimes();
-    		log.info("{} unfailed node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    		//log.info("{} unfailed node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
     		e.incrementCounter();
     		failedNodes.remove(source.getId());
     		//suspectedNodes.remove(source.getId());
     		aliveNodes.put(source.getId(), e);
+    		return;
+    	}else {
+    		if (!aliveNodes.containsKey(source.getId())){
+    			//neighbors.add(source);    			
+    			//log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    			aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
+    		}
+        		if (!neighbors.contains(source)){
+        			neighbors.add(source);    			
+        			//log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+        			//aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
+        		}
+        		if (neighbors.size()==1){
+        			schedulePeriodicPing();
+        		}
     	}
     		//we have an unknown, totally new node!
-    	if (!aliveNodes.containsKey(source.getId())){
-			//neighbors.add(source);    			
-			log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
-			aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
-		}
-    		if (!neighbors.contains(source)){
-    			neighbors.add(source);    			
-    			log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
-    			//aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
-    		}
-    		if (neighbors.size()==1){
-    			schedulePeriodicPing();
-    		}
+    	
     	
     }
     

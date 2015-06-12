@@ -64,7 +64,7 @@ public class SwimScenario {
 	 private static List<Integer> KILLED;
     private static long seed;
     private static InetAddress localHost;
-    private static Integer size=200;
+    private static Integer size=20;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {
@@ -101,6 +101,10 @@ public class SwimScenario {
 
         disconnectedNodes = new HashSet<Integer>();
         disconnectedNodes.add(4);
+        disconnectedNodes.add(6);
+        disconnectedNodes.add(8);
+        disconnectedNodes.add(10);
+        disconnectedNodes.add(12);
         disconnectedNodesSets.put(1, disconnectedNodes);
 
         disconnectedNodes = new HashSet<Integer>();
@@ -126,7 +130,12 @@ public class SwimScenario {
                     aggregatorAddress = new BasicNatedAddress(new BasicAddress(localHost, 23456, nodeId));
                     //return new AggregatorComp.AggregatorInit(aggregatorAddress,size,new ArrayList<Integer>());
                     List<Integer> nodesKilled = new ArrayList<Integer>();
-                    nodesKilled.add(4);
+                    //nodesKilled.add(4);
+//                    nodesKilled.add(4);
+//                    nodesKilled.add(6);
+//                    nodesKilled.add(8);
+//                    nodesKilled.add(10);
+//                    nodesKilled.add(12);
                     return new AggregatorComp.AggregatorInit(aggregatorAddress,size,nodesKilled);
 
                 }
@@ -311,7 +320,8 @@ public class SwimScenario {
                 StochasticProcess killPeers = new StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(1, killNodeOp, new ConstantDistribution(Integer.class, 4));
+                        //raise(5, killNodeOp, new GenIntSequentialDistribution(new Integer[]{4,6,8,10,12}));
+                        raise(1, killNodeOp, new ConstantDistribution(Integer.class,4));
                     }
                 };
 
@@ -339,11 +349,11 @@ public class SwimScenario {
 
                 startAggregator.start();
                 startPeers.startAfterTerminationOf(1000, startAggregator);
-              killPeers.startAfterTerminationOf(10000, startPeers);
+              //killPeers.startAfterTerminationOf(35000, startPeers);
                 //deadLinks1.startAfterTerminationOf(10000,startPeers);
                //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
                //reconnectPeer.startAfterTerminationOf(10000, killPeers);
-                fetchSimulationResult.startAfterTerminationOf(50*1000, killPeers);
+                fetchSimulationResult.startAfterTerminationOf(150*1000, startPeers);
                 terminateAfterTerminationOf(1000, fetchSimulationResult);
 
             }
