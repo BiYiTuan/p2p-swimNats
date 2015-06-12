@@ -64,7 +64,7 @@ public class SwimScenario {
 	 private static List<Integer> KILLED;
     private static long seed;
     private static InetAddress localHost;
-    private static Integer size=30;
+    private static Integer size=200;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {
@@ -124,7 +124,11 @@ public class SwimScenario {
                 @Override
                 public AggregatorComp.AggregatorInit getNodeComponentInit() {
                     aggregatorAddress = new BasicNatedAddress(new BasicAddress(localHost, 23456, nodeId));
-                    return new AggregatorComp.AggregatorInit(aggregatorAddress,size,new ArrayList<Integer>(disconnectedNodesSets.get(1)));
+                    //return new AggregatorComp.AggregatorInit(aggregatorAddress,size,new ArrayList<Integer>());
+                    List<Integer> nodesKilled = new ArrayList<Integer>();
+                    nodesKilled.add(4);
+                    return new AggregatorComp.AggregatorInit(aggregatorAddress,size,nodesKilled);
+
                 }
 
                 @Override
@@ -338,8 +342,8 @@ public class SwimScenario {
               killPeers.startAfterTerminationOf(10000, startPeers);
                 //deadLinks1.startAfterTerminationOf(10000,startPeers);
                //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
-               reconnectPeer.startAfterTerminationOf(10000, killPeers);
-                fetchSimulationResult.startAfterTerminationOf(50*1000, reconnectPeer);
+               //reconnectPeer.startAfterTerminationOf(10000, killPeers);
+                fetchSimulationResult.startAfterTerminationOf(50*1000, killPeers);
                 terminateAfterTerminationOf(1000, fetchSimulationResult);
 
             }
