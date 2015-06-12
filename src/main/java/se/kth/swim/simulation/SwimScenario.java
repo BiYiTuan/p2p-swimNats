@@ -64,7 +64,7 @@ public class SwimScenario {
 	 private static List<Integer> KILLED;
     private static long seed;
     private static InetAddress localHost;
-    private static Integer size=100;
+    private static Integer size=30;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {

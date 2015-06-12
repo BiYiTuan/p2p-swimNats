@@ -65,7 +65,8 @@ public class AggregatorComp extends ComponentDefinition {
     private List<Integer> willBeKilled;
     
     private long evaluationTimer;
-    private boolean converged;
+    private boolean convergedFailure;
+    private boolean convergedRecovery;
     private UUID id;
    
 
@@ -79,7 +80,8 @@ public class AggregatorComp extends ComponentDefinition {
         this.willBeKilled=init.killed;
         this.start=0;
         this.end=0;
-        this.converged=true;
+        this.convergedFailure=true;
+        this.convergedRecovery=true;
         this.evaluationTimer=0;
         this.startT=true;
         this.first=0;
@@ -124,45 +126,51 @@ public class AggregatorComp extends ComponentDefinition {
 							status.getContent().getSuspectedNodes(),
 							status.getContent().getFailedNodes() });
 
-			if ((first.equals(0)) && (status.getContent().getFailedNodes() > 0)
-					&& (willBeKilled.size() > 0)) {
-				log.info("aggregator starts counting");
-				start = evaluationTimer;
-				first++;
-			} else if (startT) {
-				startT = false;
-				start = evaluationTimer;
-			}
-
-			if (globalView.containsKey(status.getSource().getId())
-					&& willBeKilled.contains(status.getSource().getId())) {
-				if (status.getContent().getAliveNodes()
-						.equals(NETWORK - willBeKilled.size())
-						&& status.getContent().getFailedNodes()
-								.equals(willBeKilled.size())) {
-					globalView.put(status.getSource().getId(),
-							status.getContent());
-				} else {
-					globalView.remove(status.getSource().getId());
-				}
-			} else {
-				if (status.getContent().getAliveNodes()
-						.equals(NETWORK - willBeKilled.size())
-						&& status.getContent().getFailedNodes()
-								.equals(willBeKilled.size())) {
-					globalView.put(status.getSource().getId(),
-							status.getContent());
-				}
-			}
-			if (globalView.size() == (NETWORK - willBeKilled.size())
-			        && converged) {
-				converged = false;
-
-			        log.info("System converged in {} ms ", evaluationTimer
-			          - start);
-			      }
-		}
+			startFailureEvaluation(status);
+        }
     };
+    
+    private void startFailureEvaluation(NetStatus status){
+		if ((first.equals(0)) && (status.getContent().getFailedNodes() > 0)
+				&& (willBeKilled.size() > 0)) {
+			log.info("aggregator starts counting");
+			start = evaluationTimer;
+			//startT=false;
+			//startT = true;
+			first++;
+		} else if (startT) {
+			startT=false;
+			start = evaluationTimer;
+		}
+
+		if (globalView.containsKey(status.getSource().getId())
+				&& willBeKilled.contains(status.getSource().getId())) {
+			if (status.getContent().getAliveNodes()
+					.equals(NETWORK - willBeKilled.size())
+					&& status.getContent().getFailedNodes()
+							.equals(willBeKilled.size())) {
+				globalView.put(status.getSource().getId(),
+						status.getContent());
+			} else {
+				globalView.remove(status.getSource().getId());
+			}
+		} else {
+			if (status.getContent().getAliveNodes()
+					.equals(NETWORK - willBeKilled.size())
+					&& status.getContent().getFailedNodes()
+							.equals(willBeKilled.size())) {
+				globalView.put(status.getSource().getId(),
+						status.getContent());
+			}
+		}
+		if (globalView.size() == (NETWORK - willBeKilled.size())
+		        && convergedFailure) {
+			convergedFailure = false;
+
+		        log.info("System converged in {} ms ", evaluationTimer
+		          - start);
+		      }
+    }
     
     private Handler<EvaluationTimer> handleEvaluationTimer = new Handler<EvaluationTimer>(){
 
