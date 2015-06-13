@@ -62,7 +62,7 @@ import se.sics.p2ptoolbox.util.network.impl.BasicNatedAddress;
 public class SwimScenario {
 	
 	//How much nodes should be started?
-	private static Integer size=20;
+	private static Integer size=10;
 	//How much nodes should be killed?
 	private static Integer killedSize=0;
 	//How many nated nodes?
@@ -305,7 +305,7 @@ public class SwimScenario {
 						Random random = new Random();
 						List<Integer> nodeIds = new ArrayList<Integer>();
 						while (nodeIds.size() < size) {
-							int rand = random.nextInt(500);
+							int rand = random.nextInt(200);
 							if (!nodeIds.contains(rand)) {
 								if (rand % 2 == 0
 										&& openNodes < (size - killedSize)) {

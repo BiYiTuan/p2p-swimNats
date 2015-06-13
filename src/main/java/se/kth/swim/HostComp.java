@@ -21,12 +21,15 @@ package se.kth.swim;
 
 import java.util.ArrayList;
 import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import se.kth.swim.croupier.CroupierComp;
 import se.kth.swim.croupier.CroupierConfig;
 import se.kth.swim.croupier.CroupierPort;
 import se.kth.swim.croupier.util.OverlayFilter;
+import se.kth.swim.msg.net.NatPort;
 import se.sics.kompics.Component;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -66,11 +69,13 @@ public class HostComp extends ComponentDefinition {
         nat = create(NatTraversalComp.class, new NatTraversalComp.NatTraversalInit(selfAddress, init.getSeed()));
         connect(nat.getNegative(Network.class), network);
         connect(nat.getNegative(CroupierPort.class), croupier.getPositive(CroupierPort.class));
-        //connect(nat.getNegative(Timer.class), timer);
+        //connect timer
+       connect(nat.getNegative(Timer.class), timer);
         
         swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, init.getBootstrapNodes(), init.getAggregatorAddress()));
         connect(swim.getNegative(Timer.class), timer);
         connect(swim.getNegative(Network.class), nat.getPositive(Network.class));
+        connect(swim.getNegative(NatPort.class), nat.getPositive(NatPort.class));
     }
     
     private Handler<Start> handleStart = new Handler<Start>() {

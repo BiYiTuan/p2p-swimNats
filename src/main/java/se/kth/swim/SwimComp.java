@@ -18,8 +18,11 @@
  */
 package se.kth.swim;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +40,13 @@ import se.kth.swim.msg.PingReq;
 import se.kth.swim.msg.Pong;
 import se.kth.swim.msg.Status;
 import se.kth.swim.msg.net.IndirectPing;
+import se.kth.swim.msg.net.NatPort;
 import se.kth.swim.msg.net.NetFinalPong;
 import se.kth.swim.msg.net.NetIndirectPing;
 import se.kth.swim.msg.net.NetIndirectPong;
+import se.kth.swim.msg.net.NetNatRequest;
+import se.kth.swim.msg.net.NetNatResponse;
+import se.kth.swim.msg.net.NetNatUpdate;
 import se.kth.swim.msg.net.NetPing;
 import se.kth.swim.msg.net.NetPingReq;
 import se.kth.swim.msg.net.NetPong;
@@ -51,12 +58,14 @@ import se.sics.kompics.Init;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
+import se.sics.kompics.network.Address;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
+import se.sics.p2ptoolbox.util.network.NatType;
 import se.sics.p2ptoolbox.util.network.NatedAddress;
 
 /**
@@ -67,8 +76,9 @@ public class SwimComp extends ComponentDefinition {
     private static final Logger log = LoggerFactory.getLogger(SwimComp.class);
     private Positive<Network> network = requires(Network.class);
     private Positive<Timer> timer = requires(Timer.class);
+    private Positive<NatPort> nat = requires(NatPort.class);
     
-    private final NatedAddress selfAddress;
+    private NatedAddress selfAddress;
     private final Set<NatedAddress> neighbors;
     private final NatedAddress aggregatorAddress;
     private final Map<Integer,PiggyBackElement> aliveNodes;
@@ -124,6 +134,8 @@ public class SwimComp extends ComponentDefinition {
         subscribe(handleNetIndirectPing,network);
         subscribe(handleNetIndirectPong,network);
         subscribe(handleNetFinalPong,network);
+        subscribe(handleNetNatRequest, nat);
+		subscribe(handleNetNatUpdate, nat);
 
     }
 
@@ -568,6 +580,46 @@ public class SwimComp extends ComponentDefinition {
     	
     	
     }
+    
+    private Handler<NetNatRequest> handleNetNatRequest = new Handler<NetNatRequest>(){
+
+		@Override
+		public void handle(NetNatRequest event) {
+			// TODO Auto-generated method stub
+			log.info("{} received request from nated node for new relays {}", new Object[]{selfAddress.getId(),event.getParents()});
+			Set<NatedAddress> temp = new HashSet<NatedAddress>();
+			for (NatedAddress ad: event.getParents()){
+				if (aliveNodes.containsKey(ad.getId())){
+					PiggyBackElement nodeAddress = aliveNodes.get(ad.getId());
+					nodeAddress.setAddress(ad);
+					aliveNodes.put(ad.getId(), nodeAddress);
+					temp.add(nodeAddress.getAddress());
+				}
+			}
+			trigger(new NetNatResponse(temp), nat);
+		}
+    	
+    };
+    
+    private Handler<NetNatUpdate> handleNetNatUpdate = new Handler<NetNatUpdate>(){
+
+		@Override
+		public void handle(NetNatUpdate event) {
+			// TODO Auto-generated method stub
+			log.info("{} received update from nated node for new relay address {}", new Object[]{selfAddress.getId(),event.getSelfAddress()});
+			if (aliveNodes.containsKey(selfAddress.getId())){
+				
+				PiggyBackElement element = aliveNodes.get(selfAddress.getId());
+				element.setAddress(event.getSelfAddress());
+				element.initDiseminateTimes();
+				element.incrementCounter();
+				selfAddress = event.getSelfAddress();
+				neighbors.add(selfAddress);
+				aliveNodes.put(event.getSelfAddress().getId(),element);
+			}
+		}
+    	
+    };
     
     private boolean hasBiggerCount(PiggyBackElement e){
     	if (e.getCount() > aliveNodes.get(e.getAddress().getId()).getCount()){
