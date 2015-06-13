@@ -59,19 +59,13 @@ import se.sics.p2ptoolbox.util.network.impl.BasicNatedAddress;
 /**
  * @author Alex Ormenisan <aaor@sics.se>
  */
-public class SwimScenario {
-	
-	//How much nodes should be started?
-	private static Integer size=20;
-	//How much nodes should be killed?
-	private static Integer killedSize=0;
-	//How many nated nodes?
-	private static Integer nated=1;
+public class ScenarioNatted {
 
-	 private static final Logger log = LoggerFactory.getLogger(SwimScenario.class);
+	 private static final Logger log = LoggerFactory.getLogger(ScenarioNatted.class);
 	 private static List<Integer> KILLED;
     private static long seed;
     private static InetAddress localHost;
+    private static Integer size=20;
     //int viewSize, int shuffleSize, long shufflePeriod, long shuffleTimeout
     private static CroupierConfig croupierConfig = new CroupierConfig(10, 5, 2000, 1000); 
     static {
@@ -108,11 +102,11 @@ public class SwimScenario {
 
         disconnectedNodes = new HashSet<Integer>();
         disconnectedNodes.add(4);
-        disconnectedNodes.add(6);
-        disconnectedNodes.add(8);
-        disconnectedNodes.add(10);
-        disconnectedNodes.add(12);
-        disconnectedNodesSets.put(1, disconnectedNodes);
+//        disconnectedNodes.add(6);
+//        disconnectedNodes.add(8);
+//        disconnectedNodes.add(10);
+//        disconnectedNodes.add(12);
+//        disconnectedNodesSets.put(1, disconnectedNodes);
 
         disconnectedNodes = new HashSet<Integer>();
         disconnectedNodes.add(10);
@@ -182,9 +176,9 @@ public class SwimScenario {
                      * we don't want all nodes to start their pseudo random
                      * generators with same seed else they might behave the same
                      */
-                    if (bootstrapNodes.contains(nodeAddress)){
-                    	bootstrapNodes.remove(nodeAddress.getId());
-                    }
+//                    if (bootstrapNodes.contains(nodeAddress)){
+//                    	bootstrapNodes.remove(nodeAddress.getId());
+//                    }
                     long nodeSeed = seed + nodeId;
                     log.info("number of bootstrapnodes for {} is {}",new Object[]{nodeId,bootstrapNodes.size()});
                     System.out.println("RECONNECTING NODE: "+nodeId);
@@ -288,7 +282,7 @@ public class SwimScenario {
     //check se.sics.p2ptoolbox.simulator.dsl.distribution for more distributions
     //you can implement your own - by extending Distribution
     public static SimulationScenario simpleBoot(final long seed) {
-        SwimScenario.seed = seed;
+        ScenarioNatted.seed = seed;
         SimulationScenario scen = new SimulationScenario() {
             {
                 StochasticProcess startAggregator = new StochasticProcess() {
@@ -299,33 +293,18 @@ public class SwimScenario {
                 };
 
                 StochasticProcess startPeers = new StochasticProcess() {
-                    {             
-						int openNodes = 0;
-						int natedNodes = 0;
-						Random random = new Random();
-						List<Integer> nodeIds = new ArrayList<Integer>();
-						while (nodeIds.size() < size) {
-							int rand = random.nextInt(500);
-							if (!nodeIds.contains(rand)) {
-								if (rand % 2 == 0
-										&& openNodes < (size - killedSize)) {
-									// open node
-									nodeIds.add(rand);
-									openNodes++;
-								} else if (rand%2==1){
-									// nated node
-									if (natedNodes < nated) {
-										nodeIds.add(rand);
-										natedNodes++;
-									}
-								}
-							}
-						}
-						Integer[] nodes = (Integer[]) nodeIds
-								.toArray(new Integer[size]);
-						eventInterArrivalTime(constant(1000));
-						raise(size.intValue(), startNodeOp,
-								new GenIntSequentialDistribution(nodes));
+                    {                    	
+//                    	Random random =new Random();
+//                    	List<Integer> evens = new ArrayList<Integer>();
+//                        while(evens.size()<=size) {
+//                        	int rand = random.nextInt(500);
+//                        	if (!evens.contains(rand)){
+//                        		evens.add(rand);
+//                        	}
+//                        }
+//                       Integer[] nodes=(Integer[]) evens.toArray(new Integer[size]);
+                        eventInterArrivalTime(constant(1000));
+                        raise(size, startNodeOp, new GenIntSequentialDistribution(new Integer[]{4,10,13,18}));
                     }
                 };
                 

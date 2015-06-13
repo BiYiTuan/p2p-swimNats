@@ -29,6 +29,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import se.kth.swim.msg.FinalPong;
 import se.kth.swim.msg.IndirectPong;
 import se.kth.swim.msg.PiggyBackElement;
 import se.kth.swim.msg.Ping;
@@ -395,10 +396,8 @@ public class SwimComp extends ComponentDefinition {
 			}
 			}
 			//ids.remove(event.getCustomID());
-			
 			cancelSuspected(event.getTimeoutId());
 			//scheduleWaitingFailed(event.getCustomID());
-			
 		}
 		
     };
@@ -604,18 +603,19 @@ public class SwimComp extends ComponentDefinition {
 //		for (NatedAddress address :ackids.values()){
 //			tempMap.remove(address.getId());
 //		}
-//		tempMap.remove(selfAddress);
+		tempMap.remove(selfAddress.getId());
 		List<Integer> keys = new ArrayList<Integer>(tempMap.keySet());
-		PiggyBackElement value;
+		PiggyBackElement value=null;
+		if (keys.size()>0){
 		if (robin < tempMap.size()) {
 			Integer key = keys.get(robin);
-		
 			value = tempMap.get(key);
 			robin++;
 		} else {
 			robin = 0;
 			Integer key = keys.get(robin);
 			value = tempMap.get(key);
+		}
 		}
 		return value;
     }

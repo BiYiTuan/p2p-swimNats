@@ -1,10 +1,7 @@
-package se.kth.swim;
+package se.kth.swim.msg;
 
 import java.util.Map;
 import java.util.UUID;
-
-import se.kth.swim.msg.PiggyBackElement;
-import se.kth.swim.msg.Pong;
 
 public class FinalPong extends Pong{
 

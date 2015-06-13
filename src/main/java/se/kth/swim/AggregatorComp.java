@@ -135,8 +135,6 @@ public class AggregatorComp extends ComponentDefinition {
 				&& (willBeKilled.size() > 0)) {
 			log.info("aggregator starts counting");
 			start = evaluationTimer;
-			//startT=false;
-			//startT = true;
 			first++;
 		} else if (startT) {
 			startT=false;

@@ -115,7 +115,7 @@ public class PiggyBackElement {
 	}
 	
     private int calculateDisseminateTimes(){
-    	Double d = (50) *Math.log10(nodes);
+    	Double d = (10) *Math.log10(nodes);
     	return (d.intValue());
     }
     

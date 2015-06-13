@@ -66,6 +66,7 @@ public class HostComp extends ComponentDefinition {
         nat = create(NatTraversalComp.class, new NatTraversalComp.NatTraversalInit(selfAddress, init.getSeed()));
         connect(nat.getNegative(Network.class), network);
         connect(nat.getNegative(CroupierPort.class), croupier.getPositive(CroupierPort.class));
+        //connect(nat.getNegative(Timer.class), timer);
         
         swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, init.getBootstrapNodes(), init.getAggregatorAddress()));
         connect(swim.getNegative(Timer.class), timer);

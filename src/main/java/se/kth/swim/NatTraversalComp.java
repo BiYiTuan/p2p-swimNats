@@ -18,11 +18,16 @@
  */
 package se.kth.swim;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import se.kth.swim.croupier.CroupierPort;
 import se.kth.swim.croupier.msg.CroupierSample;
 import se.kth.swim.msg.net.NetMsg;
@@ -35,6 +40,10 @@ import se.sics.kompics.Start;
 import se.sics.kompics.Stop;
 import se.sics.kompics.network.Header;
 import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.CancelTimeout;
+import se.sics.kompics.timer.SchedulePeriodicTimeout;
+import se.sics.kompics.timer.Timeout;
+import se.sics.kompics.timer.Timer;
 import se.sics.p2ptoolbox.util.network.NatedAddress;
 import se.sics.p2ptoolbox.util.network.impl.RelayHeader;
 import se.sics.p2ptoolbox.util.network.impl.SourceHeader;
@@ -49,14 +58,19 @@ public class NatTraversalComp extends ComponentDefinition {
     private Negative<Network> local = provides(Network.class);
     private Positive<Network> network = requires(Network.class);
     private Positive<CroupierPort> croupier = requires(CroupierPort.class);
+    private Positive<Timer> timer = requires(Timer.class);
 
     private final NatedAddress selfAddress;
     private final Random rand;
+    
+    private List<UUID> ackIds;
+    
+    private UUID natTimeout;
 
     public NatTraversalComp(NatTraversalInit init) {
         this.selfAddress = init.selfAddress;
         log.info("{} {} initiating...", new Object[]{selfAddress.getId(), (selfAddress.isOpen() ? "OPEN" : "NATED")});
-
+        this.ackIds=new ArrayList<UUID>();
         this.rand = new Random(init.seed);
         subscribe(handleStart, control);
         subscribe(handleStop, control);
@@ -70,6 +84,9 @@ public class NatTraversalComp extends ComponentDefinition {
         @Override
         public void handle(Start event) {
             log.info("{} starting...", new Object[]{selfAddress.getId()});
+            if (!selfAddress.isOpen()){
+            	natTimeout = scheduleNatTimeout();
+            }
         }
 
     };
@@ -78,6 +95,9 @@ public class NatTraversalComp extends ComponentDefinition {
         @Override
         public void handle(Stop event) {
             log.info("{} stopping...", new Object[]{selfAddress.getId()});
+            for (UUID id : ackIds){
+            	cancelNatTimeout(id);
+            }
         }
 
     };
@@ -144,6 +164,32 @@ public class NatTraversalComp extends ComponentDefinition {
 
     };
     
+    private Handler<NatTimeout> handleNatTimeout = new Handler<NatTimeout>(){
+
+		@Override
+		public void handle(NatTimeout event) {
+			// TODO Auto-generated method stub
+			
+		}
+    	
+    };
+    
+    private UUID scheduleNatTimeout(){
+    	SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(1000, 1000);
+        NatTimeout sc = new NatTimeout(spt);
+        spt.setTimeoutEvent(sc);
+        natTimeout = sc.getTimeoutId();
+        ackIds.add(natTimeout);
+        trigger(spt, timer);
+        return natTimeout;
+    }
+    
+    private void cancelNatTimeout(UUID id){
+    	CancelTimeout cpt = new CancelTimeout(id);
+        ackIds.remove(id);
+        trigger(cpt, timer);
+    }
+    
     private Handler handleCroupierSample = new Handler<CroupierSample>() {
         @Override
         public void handle(CroupierSample event) {
@@ -171,5 +217,14 @@ public class NatTraversalComp extends ComponentDefinition {
             this.selfAddress = selfAddress;
             this.seed = seed;
         }
+    }
+    
+    private static class NatTimeout extends Timeout{
+
+		protected NatTimeout(SchedulePeriodicTimeout request) {
+			super(request);
+			// TODO Auto-generated constructor stub
+		}
+    	
     }
 }
