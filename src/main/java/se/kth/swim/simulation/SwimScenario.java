@@ -308,7 +308,7 @@ public class SwimScenario {
 							int rand = random.nextInt(200);
 							if (!nodeIds.contains(rand)) {
 								if (rand % 2 == 0
-										&& openNodes < (size - killedSize)) {
+										&& openNodes < (size - nated)) {
 									// open node
 									nodeIds.add(rand);
 									openNodes++;
