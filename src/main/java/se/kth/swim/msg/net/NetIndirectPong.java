@@ -14,6 +14,11 @@ public class NetIndirectPong extends NetMsg<IndirectPong> {
 	@Override
 	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
-		return null;
+		return new NetIndirectPong(newHeader, getContent());
+	}
+
+	public NetIndirectPong(Header<NatedAddress> header, IndirectPong content) {
+		super(header, content);
+		// TODO Auto-generated constructor stub
 	}
 }

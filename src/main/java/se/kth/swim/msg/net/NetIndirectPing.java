@@ -15,7 +15,12 @@ public class NetIndirectPing extends NetMsg<IndirectPing>{
 	@Override
 	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
-		return null;
+		return new NetIndirectPing(newHeader,getContent());
+	}
+
+	public NetIndirectPing(Header<NatedAddress> header, IndirectPing content) {
+		super(header, content);
+		// TODO Auto-generated constructor stub
 	}
 
 }

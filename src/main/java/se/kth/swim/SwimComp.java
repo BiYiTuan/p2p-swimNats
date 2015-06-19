@@ -118,9 +118,7 @@ public class SwimComp extends ComponentDefinition {
 
         for (NatedAddress address: bootstrapNodes){
         	if (!address.equals(selfAddress)){
-        		this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0));
-        		log.info("{} {} is not self and it was added ",new Object[]{selfAddress,address});
-        		
+        		this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0));     		
         	}else {
         		log.info("{} is self and it was not added ",selfAddress);
         	}
@@ -193,7 +191,6 @@ public class SwimComp extends ComponentDefinition {
 				mergeViews(event.getContent().getNodes());
 				preparePiggyBackList();
 			}
-			log.info("{} will trigger event ",selfAddress.getId());
 			trigger(new NetPong(selfAddress, source, new Pong(event
 					.getContent().getSn(), piggybacked)), network);
 		}
@@ -543,10 +540,10 @@ public class SwimComp extends ComponentDefinition {
     private void checkSource(NatedAddress source){
     	//if we receive a message from a node, it means it is alive
     	//so we check if it is consistent with our data
-    	log.info(" {} contains....alive??? {}  {}", new Object[]{selfAddress.getId(), source.getId(),aliveNodes.toString()});
+    	//log.info(" {} contains....alive??? {}  {}", new Object[]{selfAddress.getId(), source.getId(),aliveNodes.toString()});
     	if (aliveNodes.containsKey(source.getId())){
     		//information is consistent
-    		log.info(" {} contains....alive {} ", new Object[]{selfAddress.getId(), source.getId()});
+    		//log.info(" {} contains....alive {} ", new Object[]{selfAddress.getId(), source.getId()});
     		//failedNodes.remove(source.getId());
     		//suspectedNodes.remove(source.getId());
     		return;
@@ -599,7 +596,7 @@ public class SwimComp extends ComponentDefinition {
 			log.info("{} received request from nated node for new relays {}", new Object[]{selfAddress.getId(),event.getParents()});
 			Set<NatedAddress> temp = new HashSet<NatedAddress>();
 			for (NatedAddress ad: event.getParents()){
-				if (aliveNodes.containsKey(ad.getId())){
+				if (aliveNodes.containsKey(ad.getId())&&(aliveNodes.get(ad.getId()).getAddress().isOpen())){
 					PiggyBackElement nodeAddress = aliveNodes.get(ad.getId());
 					nodeAddress.setAddress(ad);
 					aliveNodes.put(ad.getId(), nodeAddress);
@@ -617,7 +614,7 @@ public class SwimComp extends ComponentDefinition {
 		public void handle(NetNatUpdate event) {
 			// TODO Auto-generated method stub
 			log.info("{} received update from nated node for new relay address {}", new Object[]{selfAddress.getId(),event.getSelfAddress()});
-			if (aliveNodes.containsKey(selfAddress.getId())){
+			if (aliveNodes.containsKey(selfAddress.getId())&& selfAddress.isOpen()){
 				
 				PiggyBackElement element = aliveNodes.get(selfAddress.getId());
 				element.setAddress(event.getSelfAddress());

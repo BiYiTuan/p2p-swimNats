@@ -59,14 +59,14 @@ import se.sics.p2ptoolbox.util.network.impl.BasicNatedAddress;
 /**
  * @author Alex Ormenisan <aaor@sics.se>
  */
-public class ScenarioNatted {
+public class ScenarioNatted20OPEN2NATTED {
 	
 	//How much nodes should be started?
-	private static Integer size=10;
+	private static Integer size=80;
 	//How much nodes should be killed?
 	private static Integer killedSize=0;
 	//How many nated nodes?
-	private static Integer nated=1;
+	private static Integer nated=8;
 
 	 private static final Logger log = LoggerFactory.getLogger(SwimScenario.class);
 	 private static List<Integer> KILLED;
@@ -289,7 +289,7 @@ public class ScenarioNatted {
     //check se.sics.p2ptoolbox.simulator.dsl.distribution for more distributions
     //you can implement your own - by extending Distribution
     public static SimulationScenario simpleBoot(final long seed) {
-    	ScenarioNatted.seed = seed;
+    	ScenarioNatted20OPEN2NATTED.seed = seed;
         SimulationScenario scen = new SimulationScenario() {
             {
                 StochasticProcess startAggregator = new StochasticProcess() {
@@ -386,7 +386,7 @@ public class ScenarioNatted {
                 //deadLinks1.startAfterTerminationOf(10000,startPeers);
                //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);
                //reconnectPeer.startAfterTerminationOf(10000, killPeers);
-                fetchSimulationResult.startAfterTerminationOf(150*1000, startPeers);
+                fetchSimulationResult.startAfterTerminationOf(200*1000, startPeers);
                 terminateAfterTerminationOf(1000, fetchSimulationResult);
 
             }

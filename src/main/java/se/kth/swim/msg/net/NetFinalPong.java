@@ -16,6 +16,11 @@ public class NetFinalPong extends NetMsg<FinalPong>{
 	@Override
 	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
-		return null;
+		return new NetFinalPong(newHeader,getContent());
+	}
+
+	public NetFinalPong(Header<NatedAddress> header, FinalPong content) {
+		super(header, content);
+		// TODO Auto-generated constructor stub
 	}
 }

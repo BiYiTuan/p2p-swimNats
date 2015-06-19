@@ -13,7 +13,12 @@ public class NetNatPong extends NetMsg<NatPong>{
 	@Override
 	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
-		return null;
+		return new NetNatPong(newHeader,getContent());
+	}
+
+	public NetNatPong(Header<NatedAddress> header, NatPong content) {
+		super(header, content);
+		// TODO Auto-generated constructor stub
 	}
 
 }
