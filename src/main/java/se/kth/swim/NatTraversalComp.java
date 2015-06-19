@@ -111,6 +111,20 @@ public class NatTraversalComp extends ComponentDefinition {
             log.info("{} starting...", new Object[]{selfAddress.getId()});
             if (!selfAddress.isOpen()){
             	natTimeout = scheduleNatTimeout();
+            	Set<NatedAddress> newParent = new HashSet<NatedAddress>();
+            	int i=0;
+    			for (NatedAddress selfParent: selfAddress.getParents()){
+    				if (selfParent.isOpen()){
+    					newParent.add(selfParent);
+    					i++;
+    					if (i==2){
+    						break;
+    					}
+    				}
+    			}
+    				selfAddress = new BasicNatedAddress(new BasicAddress(
+    		    			selfAddress.getIp(), 12345, selfAddress.getId()),
+    		    			NatType.NAT, new HashSet<NatedAddress>(newParent));
             }
         }
 
@@ -132,7 +146,7 @@ public class NatTraversalComp extends ComponentDefinition {
 
         @Override
         public void handle(NetMsg<Object> msg) {
-            log.trace("{} received msg:{}", new Object[]{selfAddress.getId(), msg});
+            log.info("{} received msg:{}", new Object[]{selfAddress.getId(), msg});
             Header<NatedAddress> header = msg.getHeader();
             if (header instanceof SourceHeader) {
                 if (!selfAddress.isOpen()) {
@@ -196,10 +210,13 @@ public class NatTraversalComp extends ComponentDefinition {
 		public void handle(FailureTimeout event) {
 			// TODO Auto-generated method stub
 			log.info("{} didn't receive Nat Pong {} is dead!", new Object[]{selfAddress.getId(),ackIds.get(event.getTimeoutId())});
+			cancelFailureTimeout(event.getTimeoutId());
 			//select new parents
 			ackIds.remove(event.getTimeoutId());
+			Map<UUID,NatedAddress> tmpMap = new HashMap<UUID, NatedAddress>();
+			tmpMap.putAll(ackIds);
 			if (croupierSample.size()>1){
-				for (UUID ids:ackIds.keySet()){
+				for (UUID ids:tmpMap.keySet()){
 					cancelFailureTimeout(ids);
 					ackIds.remove(ids);
 				}
@@ -209,9 +226,17 @@ public class NatTraversalComp extends ComponentDefinition {
 				}else {
 					Random random = new Random();
 					int rand = random.nextInt(croupierSample.size());
-					parents.add(croupierSample.get(rand-1));
+					if(rand>1){
+						parents.add(croupierSample.get(rand-1));
+					}else {
+						parents.add(croupierSample.get(rand+1));
+					}
 					rand = random.nextInt(croupierSample.size());
-					parents.add(croupierSample.get(rand-1));
+					if(rand>1){
+						parents.add(croupierSample.get(rand-1));
+					}else {
+						parents.add(croupierSample.get(rand+1));
+					}
 					
 				}
 				if (parents!=null){
@@ -235,7 +260,7 @@ public class NatTraversalComp extends ComponentDefinition {
 			for (NatedAddress parent:parents){
 				UUID natId = scheduleFailureTimeout(parent);
 				log.info(" {} sends periodic Nat Ping to relay {}",new Object[]{selfAddress.getId(),parent.getId()});
-				trigger(new NetNatPing(selfAddress, parent, new NatPing(natId,null)),network);
+				trigger(new NetNatPing(selfAddress, parent, new NatPing(natId)),network);
 			}
 		}
     	
@@ -246,8 +271,9 @@ public class NatTraversalComp extends ComponentDefinition {
 		@Override
 		public void handle(NetNatPing event) {
 			// TODO Auto-generated method stub
+			log.info("receiving net nat ping");
 			log.info(" {} received periodic Nat Ping to from NatedNode {}",new Object[]{selfAddress.getId(),event.getSource().getId()});
-			trigger(new NetNatPong(selfAddress,event.getSource(),new NatPong(event.getContent().getSn(),null)), network);
+			trigger(new NetNatPong(selfAddress,event.getSource(),new NatPong(event.getContent().getSn())), network);
 		}
     };
     
@@ -267,11 +293,26 @@ public class NatTraversalComp extends ComponentDefinition {
 		@Override
 		public void handle(NetNatResponse event) {
 			// TODO Auto-generated method stub
+			event.getParents().remove(selfAddress);
+			if (event.getParents().size()<=2){
 			selfAddress = new BasicNatedAddress(new BasicAddress(
 	    			selfAddress.getIp(), 12345, selfAddress.getId()),
 	    			NatType.NAT, new HashSet<NatedAddress>(event.getParents()));
-	      
-	      log.debug("Node {} new parents are: {}", selfAddress.getId(), selfAddress.getParents());
+			}else {
+				Set<NatedAddress> adresses= new HashSet<NatedAddress>();
+				int i=0;
+				for (NatedAddress ad:event.getParents()){
+					adresses.add(ad);
+					i++;
+					if (i==2){
+						break;
+					}
+				}
+				selfAddress = new BasicNatedAddress(new BasicAddress(
+		    			selfAddress.getIp(), 12345, selfAddress.getId()),
+		    			NatType.NAT, adresses);
+			}
+	      log.info("Node {} new parents are: {}", selfAddress.getId(), selfAddress.getParents());
 	      
 	      trigger(new NetNatUpdate(selfAddress), nat);
 		}
@@ -317,6 +358,7 @@ public class NatTraversalComp extends ComponentDefinition {
 			while (iterator.hasNext()) {
 				croupierSample.add(iterator.next().getSource());
 			}
+			log.info("{} croupier sample nodes:{}", selfAddress.getBaseAdr(), croupierSample.toString());
         }
     };
     

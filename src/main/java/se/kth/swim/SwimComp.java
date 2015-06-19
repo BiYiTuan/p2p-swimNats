@@ -79,7 +79,7 @@ public class SwimComp extends ComponentDefinition {
     private Positive<NatPort> nat = requires(NatPort.class);
     
     private NatedAddress selfAddress;
-    private final Set<NatedAddress> neighbors;
+    private final Set<NatedAddress> bootstrapNodes;
     private final NatedAddress aggregatorAddress;
     private final Map<Integer,PiggyBackElement> aliveNodes;
     private final Map<Integer,PiggyBackElement> failedNodes;
@@ -109,23 +109,29 @@ public class SwimComp extends ComponentDefinition {
         this.ackids= new HashMap<UUID,NatedAddress>();
         this.suspectids= new HashMap<UUID,NatedAddress>();
         
-        this.neighbors = init.bootstrapNodes;
+        this.bootstrapNodes = init.bootstrapNodes;
         this.aggregatorAddress = init.aggregatorAddress;
         this.aliveNodes=new HashMap<Integer,PiggyBackElement>();
         this.failedNodes=new HashMap<Integer,PiggyBackElement>();
         this.suspectedNodes=new HashMap<Integer,PiggyBackElement>();
         this.piggybacked=new HashMap<Integer,PiggyBackElement>();
 
-        for (NatedAddress address: neighbors){
-        	this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0));
+        for (NatedAddress address: bootstrapNodes){
+        	if (!address.equals(selfAddress)){
+        		this.aliveNodes.put(address.getId(),new PiggyBackElement(address,NodeStatus.ALIVE,0));
+        		log.info("{} {} is not self and it was added ",new Object[]{selfAddress,address});
+        		
+        	}else {
+        		log.info("{} is self and it was not added ",selfAddress);
+        	}
         	
         }
-        neighbors.add(selfAddress);
+        //bootstrapNodes.add(selfAddress);
         aliveNodes.put(selfAddress.getId(), new PiggyBackElement(selfAddress, NodeStatus.NEW));
         subscribe(handleStart, control);
         subscribe(handleStop, control);
-        subscribe(handlePing, network);
-        subscribe(handlePong, network);
+        subscribe(handleNetPing, network);
+        subscribe(handleNetPong, network);
         subscribe(handleNetPingReq, network);
         subscribe(handlePingTimeout, timer);
         subscribe(handleStatusTimeout, timer);
@@ -143,7 +149,7 @@ public class SwimComp extends ComponentDefinition {
 
         @Override
         public void handle(Start event) {
-            if (!neighbors.isEmpty()) {
+            if (!bootstrapNodes.isEmpty()) {
             	log.info("{} starting...", new Object[]{selfAddress.getId()});
                 schedulePeriodicPing();
             }
@@ -172,28 +178,29 @@ public class SwimComp extends ComponentDefinition {
         }
     };
 
-	private Handler<NetPing> handlePing = new Handler<NetPing>() {
+	private Handler<NetPing> handleNetPing = new Handler<NetPing>() {
 
 		@Override
 		public void handle(NetPing event) {
 			log.info("{} received ping from:{}",
 					new Object[] { selfAddress.getId(),
-							event.getHeader().getSource() });
+							event.getHeader().getSource()});
 			receivedPings++;
 			NatedAddress source = event.getHeader().getSource();
 			checkSource(source);
 			if (!event.getContent().getNodes().isEmpty()) {
 				// merge lists
 				mergeViews(event.getContent().getNodes());
+				preparePiggyBackList();
 			}
-			preparePiggyBackList();
+			log.info("{} will trigger event ",selfAddress.getId());
 			trigger(new NetPong(selfAddress, source, new Pong(event
 					.getContent().getSn(), piggybacked)), network);
 		}
 
 	};
     
-	private Handler<NetPong> handlePong = new Handler<NetPong>() {
+	private Handler<NetPong> handleNetPong = new Handler<NetPong>() {
 
 		@Override
 		public void handle(NetPong event) {
@@ -270,7 +277,7 @@ public class SwimComp extends ComponentDefinition {
         @Override
         public void handle(StatusTimeout event) {
 
-        	log.info("{} sending status to aggregator:{} alive {} suspected {} failed {} total {}", new Object[]{selfAddress.getId(), aggregatorAddress,aliveNodes.size(),suspectedNodes.size(), failedNodes.size(),neighbors.size()});
+        	log.info("{} sending status to aggregator:{} alive {} suspected {} failed {} total {}", new Object[]{selfAddress.getId(), aggregatorAddress,aliveNodes.size(),suspectedNodes.size(), failedNodes.size()});
 //            for (Integer key: aliveNodes.keySet()){
 //            	log.info("Alive Key:"+key);
 //            }
@@ -456,9 +463,9 @@ public class SwimComp extends ComponentDefinition {
 				//if (!aliveNodes.containsKey(key)){
 					value.initDiseminateTimes();
 					//value.setStatus(NodeStatus.ALIVE);
-					if (!neighbors.contains(value.getAddress())){
-						neighbors.add(value.getAddress());						
-					}
+//					if (!bootstrapNodes.contains(value.getAddress())){
+//						bootstrapNodes.add(value.getAddress());						
+//					}
 					failedNodes.remove(key);
 					suspectedNodes.remove(key);
 					aliveNodes.put(key, value);
@@ -536,13 +543,15 @@ public class SwimComp extends ComponentDefinition {
     private void checkSource(NatedAddress source){
     	//if we receive a message from a node, it means it is alive
     	//so we check if it is consistent with our data
+    	log.info(" {} contains....alive??? {}  {}", new Object[]{selfAddress.getId(), source.getId(),aliveNodes.toString()});
     	if (aliveNodes.containsKey(source.getId())){
     		//information is consistent
+    		log.info(" {} contains....alive {} ", new Object[]{selfAddress.getId(), source.getId()});
     		//failedNodes.remove(source.getId());
     		//suspectedNodes.remove(source.getId());
     		return;
     	} 
-    	else if (suspectedNodes.containsKey(source)){
+    	else if (suspectedNodes.containsKey(source.getId())){
     		PiggyBackElement e = suspectedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.initDiseminateTimes();
@@ -551,7 +560,7 @@ public class SwimComp extends ComponentDefinition {
     		e.incrementCounter();
     		aliveNodes.put(source.getId(), e);
     		return;
-    	}else if (failedNodes.containsKey(source)){
+    	}else if (failedNodes.containsKey(source.getId())){
     		PiggyBackElement e = failedNodes.get(source.getId());
     		e.setStatus(NodeStatus.ALIVE);
     		e.initDiseminateTimes();
@@ -562,17 +571,18 @@ public class SwimComp extends ComponentDefinition {
     		aliveNodes.put(source.getId(), e);
     		return;
     	}else {
+    		log.info(" {} new node!....{} ", new Object[]{selfAddress.getId(), source.getId()});
     		if (!aliveNodes.containsKey(source.getId())){
     			//neighbors.add(source);    			
-    			//log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+    			log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
     			aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
     		}
-        		if (!neighbors.contains(source)){
-        			neighbors.add(source);    			
-        			//log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
-        			//aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
-        		}
-        		if (neighbors.size()==1){
+//        		if (!bootstrapNodes.contains(source)){
+//        			bootstrapNodes.add(source);    			
+//        			//log.info("{} adds new node {} in source-checking",new Object[]{selfAddress.getId(),source.getId()});
+//        			//aliveNodes.put(source.getId(), new PiggyBackElement(source, NodeStatus.NEW));
+//        		}
+        		if (bootstrapNodes.size()==1){
         			schedulePeriodicPing();
         		}
     	}
@@ -614,7 +624,7 @@ public class SwimComp extends ComponentDefinition {
 				element.initDiseminateTimes();
 				element.incrementCounter();
 				selfAddress = event.getSelfAddress();
-				neighbors.add(selfAddress);
+				bootstrapNodes.add(selfAddress);
 				aliveNodes.put(event.getSelfAddress().getId(),element);
 			}
 		}

@@ -27,23 +27,53 @@ import se.sics.p2ptoolbox.util.network.NatedAddress;
 /**
  * @author Alex Ormenisan <aaor@sics.se>
  */
-public class Ping  extends FDMessage{
+public class Ping {
 	
+	private Map<Integer,PiggyBackElement> nodes;
+	private UUID sn;
+
 	private NatedAddress forwardNode;
 	private UUID initialUUID;
 
 	public Ping(UUID sn, Map<Integer, PiggyBackElement> nodes,NatedAddress forwardNode,UUID initialUUID) {
-		super(sn, nodes);
+		this.nodes=nodes;
 		this.forwardNode=forwardNode;
 		this.initialUUID=initialUUID;
+		this.sn=sn;
 		// TODO Auto-generated constructor stub
 	}
 	
-	public Ping(){
-		
+	
+
+	public Ping() {
+		super();
 	}
-	
-	
+
+
+
+	public Map<Integer, PiggyBackElement> getNodes() {
+		return this.nodes;
+	}
+
+
+
+	public void setNodes(Map<Integer, PiggyBackElement> nodes) {
+		this.nodes = nodes;
+	}
+
+
+
+	public UUID getSn() {
+		return sn;
+	}
+
+
+
+	public void setSn(UUID sn) {
+		this.sn = sn;
+	}
+
+
 
 	public UUID getInitialUUID() {
 		return initialUUID;
@@ -59,6 +89,14 @@ public class Ping  extends FDMessage{
 
 	public void setForwardNode(NatedAddress forwardNode) {
 		this.forwardNode = forwardNode;
+	}
+
+
+
+	@Override
+	public String toString() {
+		// TODO Auto-generated method stub
+		return this.nodes.toString()+this.nodes.keySet().toString();
 	}
 	
 }

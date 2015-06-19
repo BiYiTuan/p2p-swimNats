@@ -87,9 +87,6 @@ public class CroupierComp extends ComponentDefinition {
         this.logPrefix = "<oid:" + overlayId + ",nid:" + self.getBaseAdr().toString() + ">";
         this.bootstrapNodes = new ArrayList<NatedAddress>(init.bootstrapNodes);
 
-        if (bootstrapNodes.contains(self)){
-        	bootstrapNodes.remove(self);
-        }
         log.info("{} initiating with bootstrap nodes:{} ...", logPrefix, bootstrapNodes);
 
         this.selfView = null;

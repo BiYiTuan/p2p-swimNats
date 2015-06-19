@@ -79,7 +79,7 @@ public class PiggyBackElement {
 			return true;
 		}
 		PiggyBackElement element = (PiggyBackElement) obj;
-		return (this.getAddress().getId()==element.getAddress().getId());
+		return (this.getAddress().getId().equals(element.getAddress().getId()));
 				//&&(this.getCount()==element.getCount()));
 	}
 

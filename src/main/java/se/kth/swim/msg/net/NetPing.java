@@ -26,13 +26,14 @@ import se.sics.p2ptoolbox.util.network.NatedAddress;
  * @author Alex Ormenisan <aaor@sics.se>
  */
 public class NetPing extends NetMsg<Ping> {
+	
 
     public NetPing(NatedAddress src, NatedAddress dst) {
         super(src, dst, new Ping());
     }
     
-    public NetPing(NatedAddress src, NatedAddress dst,Ping ping) {
-        super(src, dst, ping);
+    public NetPing(NatedAddress src, NatedAddress dst,Ping content) {
+        super(src, dst, content);
     }
 
     private NetPing(Header<NatedAddress> header, Ping content) {
@@ -40,7 +41,14 @@ public class NetPing extends NetMsg<Ping> {
     }
 
     @Override
-    public NetMsg copyMessage(Header<NatedAddress> newHeader) {
+	public Ping getContent() {
+		// TODO Auto-generated method stub
+		return super.getContent();
+	}
+
+
+	@Override
+    public NetMsg<Ping> copyMessage(Header<NatedAddress> newHeader) {
         return new NetPing(newHeader, getContent());
     }
 

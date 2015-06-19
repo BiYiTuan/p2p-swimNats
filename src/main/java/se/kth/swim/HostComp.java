@@ -50,7 +50,7 @@ public class HostComp extends ComponentDefinition {
     private Positive<Timer> timer = requires(Timer.class);
 
     private final NatedAddress selfAddress;
-    
+    private Set<NatedAddress> bootstrapNodes;
     private Component swim;
     private Component nat;
     private Component croupier;
@@ -60,9 +60,10 @@ public class HostComp extends ComponentDefinition {
         log.info("{} initiating...", new Object[]{selfAddress});
         subscribe(handleStart, control);
         subscribe(handleStop, control);
+        this.bootstrapNodes=init.bootstrapNodes;
         
         int overlayId = 1; //so far we don' start multiple croupier overlay
-        croupier = create(CroupierComp.class, new CroupierComp.CroupierInit(selfAddress, new ArrayList<NatedAddress>(init.getBootstrapNodes()), init.seed, init.croupierConfig, overlayId));
+        croupier = create(CroupierComp.class, new CroupierComp.CroupierInit(selfAddress, new ArrayList<NatedAddress>(this.bootstrapNodes), init.seed, init.croupierConfig, overlayId));
         connect(croupier.getNegative(Timer.class), timer);
         connect(croupier.getNegative(Network.class), network, new OverlayFilter(overlayId));
         
@@ -72,7 +73,7 @@ public class HostComp extends ComponentDefinition {
         //connect timer
        connect(nat.getNegative(Timer.class), timer);
         
-        swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, init.getBootstrapNodes(), init.getAggregatorAddress()));
+        swim = create(SwimComp.class, new SwimComp.SwimInit(selfAddress, this.bootstrapNodes, init.getAggregatorAddress()));
         connect(swim.getNegative(Timer.class), timer);
         connect(swim.getNegative(Network.class), nat.getPositive(Network.class));
         connect(swim.getNegative(NatPort.class), nat.getPositive(NatPort.class));

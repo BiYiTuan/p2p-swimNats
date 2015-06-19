@@ -170,6 +170,7 @@ public class SwimScenario {
 
                 @Override
                 public HostComp.HostInit getNodeComponentInit(NatedAddress aggregatorServer, Set<NatedAddress> bootstrapNodes) {
+
                     if (nodeId % 2 == 0) {
                         //open address
                         nodeAddress = new BasicNatedAddress(new BasicAddress(localHost, 12345, nodeId));
@@ -177,14 +178,14 @@ public class SwimScenario {
                         //nated address
                         nodeAddress = new BasicNatedAddress(new BasicAddress(localHost, 12345, nodeId), NatType.NAT, bootstrapNodes);
                     }
-                    
+//                    if (bootstrapNodes.contains(nodeAddress)){
+//                    	bootstrapNodes.remove(nodeAddress.getId());
+//                    }
                     /**
                      * we don't want all nodes to start their pseudo random
                      * generators with same seed else they might behave the same
                      */
-                    if (bootstrapNodes.contains(nodeAddress)){
-                    	bootstrapNodes.remove(nodeAddress.getId());
-                    }
+
                     long nodeSeed = seed + nodeId;
                     log.info("number of bootstrapnodes for {} is {}",new Object[]{nodeId,bootstrapNodes.size()});
                     System.out.println("RECONNECTING NODE: "+nodeId);
@@ -300,31 +301,42 @@ public class SwimScenario {
 
                 StochasticProcess startPeers = new StochasticProcess() {
                     {             
-						int openNodes = 0;
-						int natedNodes = 0;
 						Random random = new Random();
 						List<Integer> nodeIds = new ArrayList<Integer>();
-						while (nodeIds.size() < size) {
+						while (nodeIds.size() < size-nated) {
 							int rand = random.nextInt(200);
 							if (!nodeIds.contains(rand)) {
-								if (rand % 2 == 0
-										&& openNodes < (size - nated)) {
+								if (rand % 2 == 0) {
 									// open node
 									nodeIds.add(rand);
-									openNodes++;
-								} else if (rand%2==1){
-									// nated node
-									if (natedNodes < nated) {
-										nodeIds.add(rand);
-										natedNodes++;
-									}
 								}
 							}
 						}
 						Integer[] nodes = (Integer[]) nodeIds
-								.toArray(new Integer[size]);
+								.toArray(new Integer[size-nated]);
 						eventInterArrivalTime(constant(1000));
-						raise(size.intValue(), startNodeOp,
+						raise(size-nated, startNodeOp,
+								new GenIntSequentialDistribution(nodes));
+                    }
+                };
+                
+                StochasticProcess startNatPeers = new StochasticProcess() {
+                    {             
+						Random random = new Random();
+						List<Integer> nodeIds = new ArrayList<Integer>();
+						while (nodeIds.size() < nated) {
+							int rand = random.nextInt(200);
+							if (!nodeIds.contains(rand)) {
+								if (rand%2==1){
+									// nated node
+										nodeIds.add(rand);
+								}
+							}
+						}
+						Integer[] nodes = (Integer[]) nodeIds
+								.toArray(new Integer[nated]);
+						eventInterArrivalTime(constant(1000));
+						raise(nated, startNodeOp,
 								new GenIntSequentialDistribution(nodes));
                     }
                 };
@@ -369,6 +381,7 @@ public class SwimScenario {
 
                 startAggregator.start();
                 startPeers.startAfterTerminationOf(1000, startAggregator);
+                startNatPeers.startAfterTerminationOf(1000, startPeers);
               //killPeers.startAfterTerminationOf(35000, startPeers);
                 //deadLinks1.startAfterTerminationOf(10000,startPeers);
                //disconnectedNodes1.startAfterTerminationOf(10000, startPeers);

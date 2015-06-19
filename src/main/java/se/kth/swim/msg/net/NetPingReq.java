@@ -17,7 +17,7 @@ public class NetPingReq extends NetMsg<PingReq>{
 	}
 
 	@Override
-	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
+	public NetMsg<PingReq> copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
 		return new NetPingReq(newHeader,getContent());
 	}

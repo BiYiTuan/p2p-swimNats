@@ -6,16 +6,22 @@ import java.util.UUID;
 import se.kth.swim.msg.FDMessage;
 import se.kth.swim.msg.PiggyBackElement;
 
-public class NatPong extends FDMessage{
+public class NatPong {
 
-	public NatPong() {
-		super();
+	private UUID sn;
+
+	public NatPong(UUID sn) {
 		// TODO Auto-generated constructor stub
+		this.sn=sn;
 	}
 
-	public NatPong(UUID sn, Map<Integer, PiggyBackElement> nodes) {
-		super(sn, nodes);
-		// TODO Auto-generated constructor stub
+	public UUID getSn() {
+		return sn;
 	}
 
+	public void setSn(UUID sn) {
+		this.sn = sn;
+	}
+
+	
 }

@@ -29,7 +29,7 @@ public class NetPong extends NetMsg<Pong> {
 		super(header, content);
 	}
 	@Override
-	public NetMsg copyMessage(Header<NatedAddress> newHeader) {
+	public NetMsg<Pong> copyMessage(Header<NatedAddress> newHeader) {
 		// TODO Auto-generated method stub
 		return new NetPong(newHeader, getContent());
 	}

@@ -1,21 +1,22 @@
 package se.kth.swim.msg.net;
 
-import java.util.Map;
 import java.util.UUID;
 
-import se.kth.swim.msg.FDMessage;
-import se.kth.swim.msg.PiggyBackElement;
+public class NatPing {
 
-public class NatPing extends FDMessage{
+	private UUID sn;
 
-	public NatPing() {
-		super();
+	public NatPing(UUID sn) {
+		this.sn=sn;
 		// TODO Auto-generated constructor stub
 	}
 
-	public NatPing(UUID sn, Map<Integer, PiggyBackElement> nodes) {
-		super(sn, nodes);
-		// TODO Auto-generated constructor stub
+	public UUID getSn() {
+		return sn;
+	}
+
+	public void setSn(UUID sn) {
+		this.sn = sn;
 	}
 
 }
